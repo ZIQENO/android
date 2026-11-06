@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/vpn_widget_description"
+    android:initialLayout="@layout/vpn_widget"
+    android:minWidth="180dp"
+    android:minHeight="58dp"
+    android:previewImage="@drawable/ic_vpn"
+    android:previewLayout="@layout/vpn_widget"
+    android:targetCellWidth="3"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#171922"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="4dp">
+
+    <ImageView
+        android:id="@+id/widget_icon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginEnd="8dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_vpn"
+        android:tint="#BFC7FF" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="@font/cozette"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="@string/vpn_widget_off"
+            android:textColor="#F0EEE7"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/widget_action"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/cozette"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="@string/vpn_widget_connect"
+            android:textColor="#BFC7FF"
+            android:textSize="14sp" />
+    </LinearLayout>
+</LinearLayout>

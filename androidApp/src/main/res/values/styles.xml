@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">ZIQENO</string>
+    <string name="vpn_tile">@string/app_name</string>
+    <string name="vpn_widget_description">Состояние VPN и управление подключением</string>
+    <string name="vpn_widget_off">VPN выключен</string>
+    <string name="vpn_widget_connect">Подключить</string>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:colorAccent">#285549</item>
+        <item name="android:windowBackground">#F7F7EF</item>
+    </style>
+    <style name="VpnShortcutTheme" parent="AppTheme">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+</resources>

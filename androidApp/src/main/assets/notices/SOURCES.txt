@@ -1,0 +1,24 @@
+Third-party native code in libXray.aar
+
+libXray v26.10.31 (MIT)
+https://github.com/XTLS/libXray/tree/v26.10.31
+
+Xray-core a4a3dff5b20c (Mozilla Public License 2.0)
+https://github.com/XTLS/Xray-core/tree/a4a3dff5b20c
+
+See the upstream source repositories for their dependency and licensing information.
+OkHttp and Okio (Apache License 2.0)
+https://github.com/square/okhttp
+https://github.com/square/okio
+
+gRPC Java (Apache License 2.0)
+https://github.com/grpc/grpc-java
+
+CozetteVector v.1.30.0 (MIT), subset for the Android UI
+https://github.com/the-moonwitch/Cozette/releases/tag/v.1.30.0
+
+ZXing Core 3.5.4 (Apache License 2.0)
+https://github.com/zxing/zxing/tree/zxing-3.5.4
+
+RE2/J 1.8 (BSD 3-Clause)
+https://github.com/google/re2j/tree/re2j-1.8
