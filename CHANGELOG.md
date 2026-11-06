@@ -1,7 +1,6 @@
-# Изменения
+# Changelog
 
 ## 0.4.8
 
-- Приложение переименовано в ZIQENO.
-- Идентификатор приложения изменён на `dev.ziqeno.android`, пространство имён модуля маршрутизации — на `dev.ziqeno.routing`.
-- Добавлен векторный логотип для значка приложения, главного экрана, виджета, плитки и уведомления.
+- Set the Android application ID to `dev.ziqeno.android` and the routing module namespace to `dev.ziqeno.routing`.
+- Added a vector logo for the launcher icon, home screen, widget, Quick Settings tile, and notification.

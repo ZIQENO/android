@@ -2,27 +2,28 @@
 
 <!-- impeccable:product-schema 1 -->
 
+English · [Русский](PRODUCT.ru.md)
+
 ## Platform
 
 android
 
 ## Stack
 
-Интерфейс на Android Views. Алгоритм выбора серверов в Kotlin Multiplatform, системный туннель на Android VpnService и libXray.
+The interface uses Android Views. The server selection algorithm is written in Kotlin Multiplatform. The system tunnel uses Android VpnService and libXray.
 
 ## Users
 
-Пользователь Android добавляет подписку провайдера, подключает VPN и при необходимости выбирает приложения для отдельных автоматических маршрутов.
+Android users add a subscription from their VPN provider, connect to the VPN, and optionally assign apps to dedicated automatic routes.
 
 ## Product Purpose
 
-Подбирать серверы для текущей сети, показывать назначения и объяснять смены маршрута.
+Select servers for the current network, show route assignments, and explain why routes change.
 
 ## Capabilities and Constraints
 
-Маршрутизация по сайтам, наблюдаемым соединениям выбранных приложений и пресетам. История замеров разделена по типам сети. Интерфейс показывает измеренные данные, состояние действующего соединения и журнал смены узлов.
+ZIQENO routes traffic based on sites, observed connections from selected apps, and routing presets. Measurement history is separated by network type. The interface displays measurements, the current connection state, and the server switch log.
 
 ## Brand Commitments
 
-Пиксельный моноширинный шрифт, тонкие границы, простые графики. Три базовых цвета на тему. Светлая и тёмная темы.
-
+Pixel-style monospace typography, thin borders, and simple charts. Three base colors per theme. Light and dark themes.

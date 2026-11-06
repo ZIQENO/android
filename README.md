@@ -1,81 +1,81 @@
 # ZIQENO
 
-<img src="branding/ziqeno.svg" width="108" height="108" alt="Логотип ZIQENO">
+English · [Русский](README.ru.md)
 
-VPN-клиент для Android с автоматическим выбором узлов, отдельными маршрутами приложений и доменным раздельным туннелем. Требуется Android 8.0 или новее.
+<img src="branding/ziqeno.svg" width="108" height="108" alt="ZIQENO logo">
 
-[История изменений](CHANGELOG.md) · [Данные и сетевые запросы](PRIVACY.md) · [Сторонние компоненты](androidApp/src/main/assets/notices/SOURCES.txt)
+ZIQENO is an Android VPN client with automatic server selection, per-app routing, and domain-based split tunneling. It requires Android 8.0 or later.
 
-Android устанавливает ZIQENO (`dev.ziqeno.android`) отдельно от прежнего приложения. Подписки, правила и настройки нужно добавить заново.
+[Changelog](CHANGELOG.md) · [Privacy](PRIVACY.md) · [Product](PRODUCT.md) · [Design](DESIGN.md) · [Third-party notices](androidApp/src/main/assets/notices/SOURCES.txt)
 
-## Серверы и подписки
+## Servers and subscriptions
 
-1. Откройте «Настройки» → «Серверы и подписки». Добавьте HTTPS-ссылку провайдера, отдельный сервер или QR-код с камеры или изображения. После сканирования проверьте заполненную форму и сохраните источник.
-2. Отдельный сервер можно добавить по ссылке либо ввести адрес, порт и данные доступа. Поддерживаются VLESS, VMess, Trojan, Shadowsocks и Hysteria 2. Форма разделяет параметры протокола, транспорт и защиту. Для VLESS, VMess и Trojan доступны TCP (RAW), WebSocket, gRPC, XHTTP, HTTPUpgrade и mKCP. Поля меняются по выбранному режиму. TLS поддерживает SNI, ALPN, отпечаток клиента, SHA-256 сертификата и ECH. REALITY поддерживает SNI, отпечаток, публичный ключ, Short ID и SpiderX. Для Hysteria 2 доступны Salamander, UDP timeout и параметры перегрузки.
-3. Нажмите на строку источника, чтобы изменить его название, ссылку или параметры, обновить список узлов или удалить источник. При ошибке провайдера сохраняется последняя загруженная версия подписки. Кнопка «Серверы подписки» открывает список узлов с последними замерами и ручной проверкой.
-4. Нажмите «Подключить» и подтвердите системное разрешение. Все источники участвуют в выборе маршрутов. Совпадающие узлы объединяются. Можно сохранить до 32 источников, до 250 уникальных узлов участвуют в одном сеансе. Изменения вступают в силу при следующем подключении.
+1. Open **Settings** (`Настройки`) → **Servers and subscriptions** (`Серверы и подписки`). Add a provider's HTTPS subscription URL, a single server, or a QR code from the camera or an image. After scanning, review the populated form and save the source.
+2. Add a server from a link or enter its address, port, and credentials manually. ZIQENO supports VLESS, VMess, Trojan, Shadowsocks, and Hysteria 2. The form groups protocol, transport, and security settings and shows fields for the selected mode. VLESS, VMess, and Trojan support TCP (RAW), WebSocket, gRPC, XHTTP, HTTPUpgrade, and mKCP. TLS supports SNI, ALPN, client fingerprints, SHA-256 certificate fingerprints, and ECH. REALITY supports SNI, client fingerprints, public keys, Short ID, and SpiderX. Hysteria 2 supports Salamander, UDP timeouts, and congestion settings.
+3. Tap a source to edit its name, URL, or settings, refresh its subscription, or remove it. If a provider returns an error, ZIQENO keeps the last downloaded version. **Subscription servers** (`Серверы подписки`) shows the server list, latest measurements, and a manual test button.
+4. Tap **Connect** (`Подключить`) and approve Android's VPN permission. ZIQENO considers all sources and deduplicates matching nodes. You can save up to 32 sources, and up to 250 distinct nodes can participate in a single session. Source changes take effect on the next connection.
 
-HWID совместим с Remnawave. Подписка по умолчанию отправляет стабильный идентификатор для своего HTTPS-адреса с моделью устройства и версией Android. Это можно отключить при редактировании. При переадресации на другой домен или порт данные устройства не передаются. Клиент отображает ответ провайдера о лимите устройств или требовании HWID. [Контракт Remnawave](https://docs.rw/features/hwid-device-limit/)
+ZIQENO supports Remnawave HWID. By default, subscription requests send a stable identifier scoped to the provider's HTTPS origin, along with the device model and Android version. You can turn this off per subscription. Redirects to a different host or port omit device details. ZIQENO displays provider responses about device limits and HWID requirements. [Remnawave HWID documentation](https://docs.rw/features/hwid-device-limit/)
 
-Базовые ссылки, созданные ручной формой 0.4.0, открываются с заполненными полями. Ссылки с параметрами за пределами формы открываются как ссылки. [Транспорты Xray](https://xtls.github.io/en/config/transports/index.html)
+Compatible server links open with prefilled fields. Links with parameters outside the scope of the form open in URL mode. [Xray transports](https://xtls.github.io/en/config/transports/index.html)
 
-## Быстрые настройки Android
+## Android shortcuts and notifications
 
-В настройках приложения нажмите «Добавить плитку VPN». На Android 13 и новее откроется системное подтверждение. На более ранних версиях откройте редактор быстрых настроек и перетащите ZIQENO в список. Плитка подключает и отключает VPN. При первом подключении Android запрашивает разрешение.
+In settings, tap **Add VPN tile** (`Добавить плитку VPN`). Android 13 and later show a system confirmation. On earlier Android versions, open the Quick Settings editor and drag ZIQENO into the active tiles. The tile connects and disconnects the VPN. Android asks for VPN permission the first time you connect.
 
-«Добавить виджет VPN» помещает ZIQENO на главный экран после подтверждения. Виджет также доступен в списке виджетов лаунчера. Он показывает состояние VPN и управляет подключением.
+**Add VPN widget** (`Добавить виджет VPN`) places ZIQENO on the home screen after confirmation. You can also add it from the launcher's widget picker. The widget shows the VPN status and controls the connection.
 
-При первом запуске после установки приложение предлагает настроить фоновую работу. Системные ссылки на оптимизацию батареи и карточку приложения доступны в разделе «Настройки» → «Фоновая работа». [Оптимизация батареи в Android](https://developer.android.com/training/monitoring-device-state/doze-standby)
+On first launch, ZIQENO offers to open Android settings for background operation. Links to battery optimization and the app info screen are under **Settings** → **Background operation** (`Фоновая работа`). [Android battery optimization](https://developer.android.com/training/monitoring-device-state/doze-standby)
 
-«Подробное уведомление» показывает действующий узел, загрузку и отдачу. Если подробности выключены, служебное уведомление Android показывает статус VPN. Отображение в шторке зависит от разрешения на уведомления. Android 14 и новее разрешает смахнуть постоянное уведомление на разблокированном устройстве. [Android VPN](https://developer.android.com/develop/connectivity/vpn)
+**Detailed notification** (`Подробное уведомление`) shows the active server and download and upload rates. With details off, Android's service notification shows the VPN status. Visibility in the notification shade depends on notification permission. Android 14 and later allow users to dismiss the ongoing notification while the device is unlocked. [Android VPN documentation](https://developer.android.com/develop/connectivity/vpn)
 
-## Маршруты приложений
+## Per-app routing
 
-На Android 10 и новее можно выбрать до 24 приложений из меню запуска. Android определяет приложение по владельцу соединения. Для приложений с общим системным UID выбор недоступен. Правила приложений имеют приоритет над правилами сайтов. При отсутствии определённого владельца применяется обычная маршрутизация VPN.
+On Android 10 and later, you can select up to 24 apps from the launcher list. Android identifies an app from the owner of its connection. Apps that share a system UID cannot be selected. Per-app rules take precedence over site rules. Connections whose owner cannot be identified use regular VPN routing.
 
-В режиме «По соединениям приложения» клиент ждёт TCP-соединение с видимым TLS-именем на порту 443. Затем он проверяет TLS через несколько VPN-узлов до замеченного IP-адреса и выбирает отдельный маршрут. История замеров разделена по приложению, проверяемому адресу и типу сети. До первого успешного замера приложение использует общий маршрут. После десяти минут без наблюдений сохраняется последний выбранный узел, а интерфейс показывает, что проверка была раньше. Домены и IP-адреса наблюдаемых соединений хранятся в памяти текущего сеанса.
+In **Based on app connections** mode (`По соединениям приложения`), ZIQENO waits for a TCP connection with a visible TLS hostname on port 443. It then tests TLS to the observed IP address through several VPN nodes and selects a dedicated route. Measurements are stored separately by app, test target, and network type. The app uses the default VPN route until the first successful test. After ten minutes without a new observation, ZIQENO keeps the last selected node and marks the check as stale. Observed hostnames and IP addresses are kept in memory for the current session.
 
-Для Telegram используются фактические TCP-соединения с адресами из опубликованных диапазонов дата-центров. Проверка выполняет первый обмен MTProto по обфусцированному транспорту без авторизации. При добавлении браузера приложение предупреждает, что автоматический замер может выбрать фоновое соединение вместо страницы.
+For Telegram, ZIQENO uses actual TCP connections to addresses in published data center ranges. The test performs the initial MTProto exchange over obfuscated transport without authentication. When you add a browser, ZIQENO warns that an automatic test may pick a background connection instead of the open page.
 
-По желанию для приложения можно выбрать «Отзывчивость» с упором на время ответа или «Загрузка» с упором на пропускную способность. Приложения одного пресета используют общий для них маршрут и набор замеров. Текущий сервер и последняя смена видны в списке приложений. Автоматические переключения применяются к новым соединениям без перезапуска VPN.
+You can also choose **Responsiveness** (`Отзывчивость`) to favor response time or **Download** (`Загрузка`) to favor throughput. Apps on the same preset share a route and measurements. The app list shows the current server and the most recent switch. Automatic route changes apply to new connections without restarting the VPN.
 
-Кнопка «Открыть журнал» на экране VPN показывает до 100 последних смен. Для каждой записи доступны время, сеть, маршрут, прежний и новый узлы и причина. Записи сохраняются между сеансами.
+**Open switch log** (`Открыть журнал`) on the VPN screen shows the last 100 switches. Each entry includes the time, network, route, outgoing and incoming nodes, and the reason for the switch. Entries persist across sessions.
 
-## Трафик VPN
+## VPN traffic
 
-На экране VPN показаны текущие скорости загрузки и отдачи и история за последние 10 минут. Источник данных — счётчики трафика входа VPN в Xray. Запросы для оценки узлов идут через отдельный вход и в график не попадают. Сбор работает в службе VPN, пока экран приложения закрыт. После отключения остаются уже записанные точки. Интервалы без данных остаются пустыми.
+The VPN screen shows live download and upload rates and the last 10 minutes of history. It reads Xray's VPN inbound counters. Server probes use a separate inbound, so the chart tracks VPN traffic only. The VPN service continues collecting data while the app is closed. Recorded points remain visible after disconnecting, and gaps in the data stay blank.
 
-## Раздельный туннель
+## Split tunneling
 
-В настройках можно задать до 32 доменных правил. Применяется первое совпадение сверху вниз, перед правилами сайтов и приложений. Поддерживаются точный домен, суффикс с поддоменами, маски с `*` и `?`, ключевое слово, регулярное выражение RE2 и правило для всех соединений. Выход можно направить напрямую, через авто-VPN, через конкретный VPN-узел или заблокировать. При недоступности выбранного вручную узла срабатывает блокировка. Сохранение, перестановка и переключение правил применяются к новым соединениям в текущем туннеле. Открытые соединения сохраняют свой маршрут до закрытия.
+Settings support up to 32 domain rules. ZIQENO applies the first matching rule from top to bottom, ahead of site and app rules. Match types include exact domains, suffixes with subdomains, wildcards using `*` and `?`, keywords, RE2 regular expressions, and a catch-all. Each rule can use a direct connection, automatic VPN routing, a specific VPN node, or block traffic. If a fixed node is unavailable, traffic matching the rule is blocked. Saving, reordering, or toggling rules applies them to new connections in the current tunnel. Open connections keep their route until they close.
 
-HTTPS-замер включается отдельно для правила и использует указанный домен. Для авто-VPN замеры подбирают отдельный узел и резерв, а без замеров используется общий узел VPN. Для прямого выхода и фиксированного узла проверяется их доступность. Доменное сопоставление использует имя, видимое Xray в HTTP, TLS или QUIC. Для соединений со скрытым именем доступны только общие правила. Прямой трафик вычитается из графика VPN.
+You can enable an HTTPS probe for each rule and specify its target domain. An automatic VPN rule uses measurements to select a dedicated node and backup. Without measurements, it uses the default VPN node. For direct and fixed-node rules, the probe checks reachability. Domain matching uses hostnames visible to Xray in HTTP, TLS, or QUIC. Connections whose hostname is hidden can only match catch-all rules. Direct traffic is excluded from the VPN chart.
 
-## Выбор серверов
+## Server selection
 
-- Модуль `routing` содержит ранжирование, модель истории и политику переключения Kotlin Multiplatform. Модуль `androidApp` отвечает за туннель, Xray, измерения и хранение данных.
-- При холодном подключении клиент проверяет узлы группами и начинает пропускать трафик через первый ответивший. При тёплом подключении первыми проверяются кандидаты из истории текущего типа сети. Далее клиент проверяет до 30 узлов, назначает подходящие серверы и включает обычную защиту от частых переключений. Дальнейшие раунды проверяют текущие назначения, резервы и узлы из каталога по очереди. До 12 кандидатов получают отдельные HTTPS-пробы для GitHub и YouTube. Трафик без совпавшего правила идёт через общий маршрут VPN.
-- Скорость загрузки оценивается через ограниченный HTTPS GET к Cloudflare через конкретный узел. Размер одного замера составляет до 256 КиБ на безлимитном соединении и до 64 КиБ на мобильной или тарифицируемой сети. За 15 минут проверяются до трёх и двух кандидатов соответственно. В энергосбережении загрузки для замеров приостанавливаются. Для YouTube эта скорость служит общей оценкой канала до CDN Cloudflare.
-- Для Wi-Fi и мобильной сети хранятся отдельные выборки за последние сутки. При смене типа сети активные пробы прерываются после текущего пакета запросов и запускается новый раунд. Рейтинг и достоверность пересчитываются из истории текущего типа сети. Ссылки и конфигурации источников шифруются через Android Keystore.
-- Кандидат заменяет текущий узел после трёх последовательных подтверждений преимущества минимум на 15% и двух минут удержания. Проверка активных узлов идёт отдельно от рейтинга, примерно раз в 2 секунды по Wi-Fi и раз в 4 секунды в мобильной, тарифицируемой сети или в режиме энергосбережения. Если два разных HTTPS-адреса подтверждают отказ узла, контроллер сразу переключается на доступный проверенный резерв и запускает внеочередной поиск следующего. При отказе или ошибке применения маршрута узел исключается из выбора на две минуты. Изменения применяются к новым соединениям через локальный API Xray.
+- The Kotlin Multiplatform module `routing` implements ranking, measurement history, and switch policy. `androidApp` handles the tunnel, Xray, measurements, and storage.
+- On a cold connection, ZIQENO tests nodes in batches and starts routing through the first one to respond. On a warm connection, it first checks candidates from the current network's history. ZIQENO then tests up to 30 nodes, assigns suitable servers, and applies its standard switching safeguards. Later rounds rotate through active nodes, backups, and catalog candidates. Up to 12 candidates get separate HTTPS probes for GitHub and YouTube. Unmatched traffic uses the default VPN route.
+- ZIQENO estimates download speed with a size-limited HTTPS GET to Cloudflare through a specific node. Each test uses up to 256 KiB on an unmetered connection and up to 64 KiB on a mobile or metered network. Over 15 minutes, ZIQENO tests up to three and two candidates, respectively. Power saving pauses test downloads. The YouTube route uses this speed as an estimate of throughput to Cloudflare's CDN.
+- ZIQENO keeps separate Wi-Fi and mobile samples for the past 24 hours. When the network type changes, it stops probes after the current batch and starts another round. It recalculates ranking and confidence from the history for the current network type. Source URLs and configurations are encrypted with a key stored in Android Keystore.
+- ZIQENO switches to a candidate after it performs at least 15% better in three consecutive checks and the active node has been in use for at least two minutes. Active-node health checks run separately from ranking, roughly every two seconds on Wi-Fi and every four seconds on mobile or metered networks or in power-saving mode. If checks to two distinct HTTPS endpoints confirm a failure, ZIQENO immediately switches to a tested backup when one is available and starts an extra round to find the next backup. A node is excluded for two minutes after a failure or a route update error. Changes apply to new connections through Xray's local API.
 
-## Сборка
+## Build
 
-Нужны JDK 17 или новее, Android SDK Platform 36 и Build Tools 35.0.0. Укажите путь к SDK через `ANDROID_HOME` или `local.properties`.
+Install JDK 17 or later, Android SDK Platform 36, and Build Tools 35.0.0. Set the SDK path through `ANDROID_HOME` or `local.properties`.
 
-В PowerShell выполните следующие команды.
+Run these commands in PowerShell.
 
 ```powershell
 ./scripts/fetch-libxray.ps1
 ./gradlew.bat :routing:jvmTest :androidApp:testDebugUnitTest :androidApp:assembleDebug :androidApp:lintDebug
 ```
 
-Скрипт загружает официальный архив libXray v26.10.31 и сверяет SHA-256. Чтобы использовать уже скачанный архив, передайте `-ArchivePath путь/к/libxray-android.zip`. В Linux и macOS запустите скрипт через `pwsh -File scripts/fetch-libxray.ps1`, затем выполните те же задачи через `sh gradlew`.
+The script downloads the official libXray v26.10.31 archive and verifies its SHA-256 checksum. To reuse a downloaded archive, pass `-ArchivePath path/to/libxray-android.zip`. On Linux and macOS, run `pwsh -File scripts/fetch-libxray.ps1`, then run the same Gradle tasks with `sh gradlew`.
 
-В `androidApp/build/outputs/apk/debug` создаются отдельные отладочные APK для arm64-v8a, armeabi-v7a, x86_64 и x86. Для современных телефонов обычно подходит arm64-v8a, для x86_64-эмулятора — x86_64.
+The build writes separate debug APKs for arm64-v8a, armeabi-v7a, x86_64, and x86 to `androidApp/build/outputs/apk/debug`. Use arm64-v8a for most modern phones and x86_64 for an x86_64 emulator.
 
-## Сторонние компоненты
+## Third-party components
 
-Сведения об используемых версиях и тексты лицензий находятся в [каталоге notices](androidApp/src/main/assets/notices). Этот каталог включается в APK.
+The [notices directory](androidApp/src/main/assets/notices) contains dependency versions and license texts. The build includes it in the APK.
 
-[libXray v26.10.31](https://github.com/XTLS/libXray/releases/tag/v26.10.31) · [Android VpnService](https://developer.android.com/develop/connectivity/vpn) · [API маршрутизации Xray](https://xtls.github.io/en/config/api.html) · [Cloudflare Speed Test](https://github.com/cloudflare/speedtest)
+[libXray v26.10.31](https://github.com/XTLS/libXray/releases/tag/v26.10.31) · [Android VpnService](https://developer.android.com/develop/connectivity/vpn) · [Xray routing API](https://xtls.github.io/en/config/api.html) · [Cloudflare Speed Test](https://github.com/cloudflare/speedtest)

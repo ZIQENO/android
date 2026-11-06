@@ -1,15 +1,17 @@
-# Данные в ZIQENO
+# Data in ZIQENO
 
-## На устройстве
+English · [Русский](PRIVACY.ru.md)
 
-- Подписки, адреса серверов и данные доступа хранятся в зашифрованном файле. Ключ хранится в Android Keystore.
-- Приложение хранит выбранные маршруты, доменные правила, замеры и журнал смены узлов. Домены и IP-адреса, обнаруженные при подборе маршрута приложения, хранятся в памяти текущего сеанса. Для истории таких замеров используется хеш цели.
-- Камера используется для сканирования QR-кодов. Можно выбрать изображение через диалог Android. Содержимое QR обрабатывается на устройстве.
+## On your device
 
-## Сетевые запросы
+- ZIQENO stores subscriptions, server addresses, and credentials in an encrypted file. The encryption key is stored in Android Keystore.
+- ZIQENO stores route selections, domain rules, measurements, and the server switch log. Hostnames and IP addresses observed during per-app route selection are kept in memory for the current session. The measurement history uses a hash of the target.
+- ZIQENO uses the camera to scan QR codes. You can also select an image through Android's system picker. QR code contents are processed on your device.
 
-- При загрузке и обновлении подписки приложение обращается к её провайдеру. Если включена передача HWID, запрос передаёт идентификатор, привязанный к адресу провайдера, модель устройства и версию Android. Передачу можно отключить отдельно для каждой подписки.
-- Автоматические и ручные замеры используют HTTPS-адреса Cloudflare и Google. Для маршрутов сайтов также проверяются GitHub и YouTube. Если включена проверка доменного правила, клиент обращается к указанному пользователем домену. При подборе по соединениям приложения проверки направляются к обнаруженной цели.
-- Трафик проходит через выбранные серверы или напрямую согласно правилам. Приложение использует Cloudflare для встроенного DNS-резолвера.
+## Network requests
 
-Локальные данные можно удалить в системной карточке приложения Android.
+- When you add or refresh a subscription, ZIQENO contacts its provider. If HWID sharing is enabled, the request sends an identifier scoped to the provider's origin, your device model, and your Android version. You can turn this off per subscription.
+- Automatic and manual measurements use Cloudflare and Google HTTPS endpoints. Site-specific routes also test GitHub and YouTube. If you enable a probe for a domain rule, ZIQENO contacts the domain you specify. In app-connection mode, probes use the observed target.
+- Traffic goes through the selected servers or directly to its destination, according to the routing rules. The built-in DNS resolver uses Cloudflare.
+
+You can clear local data from the app info screen in Android settings.
