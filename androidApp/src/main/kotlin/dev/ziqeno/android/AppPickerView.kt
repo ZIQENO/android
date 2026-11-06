@@ -18,7 +18,7 @@ internal class AppPickerView(
     private val ui: PixelUi,
     choose: (LaunchableApp) -> Unit,
 ) : LinearLayout(context) {
-    private val search = ui.field("Поиск приложений")
+    private val search = ui.field(context.getString(R.string.apps_search))
     private val empty = ui.text("", 17)
     private var catalog = emptyList<LaunchableApp>()
     private var filtered = emptyList<LaunchableApp>()
@@ -46,7 +46,7 @@ internal class AppPickerView(
             val item = getItem(position)
             (row.getChildAt(0) as TextView).text = item.label
             (row.getChildAt(1) as TextView).text =
-                if (item.isBrowser) "Браузер · ${item.packageName}" else item.packageName
+                if (item.isBrowser) context.getString(R.string.apps_browser_package, item.packageName) else item.packageName
             return row
         }
     }
@@ -93,7 +93,7 @@ internal class AppPickerView(
     private fun filter() {
         val query = search.text.toString().trim()
         filtered = catalog.filter { it.label.contains(query, true) || it.packageName.contains(query, true) }
-        empty.text = if (loading) "Ищем приложения…" else "Приложения не найдены"
+        empty.text = if (loading) context.getString(R.string.apps_search_loading) else context.getString(R.string.apps_search_empty)
         adapter.notifyDataSetChanged()
     }
 }

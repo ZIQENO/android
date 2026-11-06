@@ -53,8 +53,8 @@ class QrCameraActivity : Activity() {
             setBackgroundColor(ui.paper)
             setPadding(ui.dp(20), ui.dp(16), ui.dp(20), ui.dp(16))
         }
-        root.addView(ui.text("Сканировать QR", 28))
-        root.addView(ui.text("Наведите камеру на код подписки или сервера.", 17),
+        root.addView(ui.text(getString(R.string.source_scan_qr), 28))
+        root.addView(ui.text(getString(R.string.source_qr_point_camera), 17),
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(8); bottomMargin = ui.dp(14) })
         preview = TextureView(this)
         val viewport = FrameLayout(this)
@@ -70,7 +70,7 @@ class QrCameraActivity : Activity() {
             }
         }, FrameLayout.LayoutParams(-1, -1))
         root.addView(viewport, LinearLayout.LayoutParams(-1, 0, 1f))
-        root.addView(ui.button("Отмена") { finish() }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(12) })
+        root.addView(ui.button(getString(R.string.source_cancel)) { finish() }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(12) })
         setContentView(root)
         if (Build.VERSION.SDK_INT >= 30) {
             window.setDecorFitsSystemWindows(false)
@@ -123,14 +123,14 @@ class QrCameraActivity : Activity() {
         super.onRequestPermissionsResult(code, permissions, results)
         if (code != requestPermission) return
         if (results.firstOrNull() == PackageManager.PERMISSION_GRANTED) tryStart()
-        else fail("Доступ к камере выключен. Выберите изображение с QR-кодом.")
+        else fail(getString(R.string.source_qr_camera_denied))
     }
 
     private fun tryStart() {
         if (!active || isFinishing || opening || camera != null || !preview.isAvailable) return
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) return
         runCatching { openCamera(checkNotNull(preview.surfaceTexture)) }.onFailure {
-            fail("Камера недоступна. Выберите изображение с QR-кодом.")
+            fail(getString(R.string.source_qr_camera_unavailable))
         }
     }
 
@@ -183,7 +183,7 @@ class QrCameraActivity : Activity() {
                 opening = false
                 camera = device
                 runCatching { beginPreview(device, outputSurface, frameReader.surface, token, autofocus) }.onFailure {
-                    fail("Не удалось запустить камеру. Выберите изображение.")
+                    fail(getString(R.string.source_qr_camera_start_failed))
                 }
             }
 
@@ -191,7 +191,7 @@ class QrCameraActivity : Activity() {
             override fun onError(device: CameraDevice, error: Int) = end(device)
             private fun end(device: CameraDevice) {
                 device.close()
-                if (token == generation) fail("Камера недоступна. Выберите изображение с QR-кодом.")
+                if (token == generation) fail(getString(R.string.source_qr_camera_unavailable))
             }
         }, Handler(mainLooper))
     }
@@ -212,12 +212,12 @@ class QrCameraActivity : Activity() {
                         if (autofocus) set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
                     }.build()
                     configured.setRepeatingRequest(request, null, null)
-                }.onFailure { fail("Не удалось запустить камеру. Выберите изображение.") }
+                }.onFailure { fail(getString(R.string.source_qr_camera_start_failed)) }
             }
 
             override fun onConfigureFailed(configured: CameraCaptureSession) {
                 configured.close()
-                if (token == generation) fail("Камера не поддерживает этот режим. Выберите изображение.")
+                if (token == generation) fail(getString(R.string.source_qr_camera_mode_failed))
             }
         }, Handler(mainLooper))
     }

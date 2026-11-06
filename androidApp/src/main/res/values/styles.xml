@@ -1,9 +1,6 @@
 <resources>
-    <string name="app_name">ZIQENO</string>
-    <string name="vpn_tile">@string/app_name</string>
-    <string name="vpn_widget_description">Состояние VPN и управление подключением</string>
-    <string name="vpn_widget_off">VPN выключен</string>
-    <string name="vpn_widget_connect">Подключить</string>
+    <string name="app_name" translatable="false">ZIQENO</string>
+    <string name="vpn_tile" translatable="false">@string/app_name</string>
     <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">monospace</item>
         <item name="android:windowLightStatusBar">true</item>

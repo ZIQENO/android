@@ -57,17 +57,17 @@ class VpnWidget : AppWidgetProvider() {
         private fun update(context: Context, manager: AppWidgetManager, ids: IntArray, phase: VpnPhase) {
             if (ids.isEmpty()) return
             val status = when (phase) {
-                VpnPhase.OFF -> context.getString(R.string.vpn_widget_off)
-                VpnPhase.CHECKING -> "Подключаем VPN"
-                VpnPhase.CONNECTED -> "VPN подключён"
-                VpnPhase.STOPPING -> "Отключаем VPN"
-                VpnPhase.ERROR -> "Ошибка VPN"
+                VpnPhase.OFF -> context.getString(R.string.vpn_state_off)
+                VpnPhase.CHECKING -> context.getString(R.string.vpn_state_connecting)
+                VpnPhase.CONNECTED -> context.getString(R.string.vpn_state_connected)
+                VpnPhase.STOPPING -> context.getString(R.string.vpn_state_stopping)
+                VpnPhase.ERROR -> context.getString(R.string.vpn_state_error)
             }
             val action = when (phase) {
-                VpnPhase.CHECKING -> "Отменить"
-                VpnPhase.CONNECTED -> "Отключить"
+                VpnPhase.CHECKING -> context.getString(R.string.action_cancel)
+                VpnPhase.CONNECTED -> context.getString(R.string.vpn_action_disconnect)
                 VpnPhase.STOPPING -> null
-                else -> context.getString(R.string.vpn_widget_connect)
+                else -> context.getString(R.string.vpn_action_connect)
             }
             val click = if (action == null) null else {
                 val disconnecting = phase == VpnPhase.CONNECTED || phase == VpnPhase.CHECKING
@@ -81,7 +81,7 @@ class VpnWidget : AppWidgetProvider() {
                 setTextViewText(R.id.widget_status, status)
                 setTextViewText(R.id.widget_action, action.orEmpty())
                 setViewVisibility(R.id.widget_action, if (action == null) View.GONE else View.VISIBLE)
-                setContentDescription(android.R.id.background, listOfNotNull(status, action).joinToString(". "))
+                setContentDescription(android.R.id.background, if (action == null) status else context.getString(R.string.widget_status_action, status, action))
                 setOnClickPendingIntent(android.R.id.background, click)
             }
             runCatching { manager.updateAppWidget(ids, views) }

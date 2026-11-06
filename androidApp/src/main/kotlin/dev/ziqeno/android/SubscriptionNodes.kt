@@ -1,12 +1,17 @@
 package dev.ziqeno.android
 
+import android.content.Context
 import dev.ziqeno.routing.SubscriptionLinks
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
 import java.security.MessageDigest
 
-internal data class XrayNode(val id: String, val name: String, val outbounds: List<JSONObject>)
+internal data class XrayNode(val id: String, val name: String, val outbounds: List<JSONObject>) {
+    fun displayName(context: Context): String = name.ifBlank {
+        context.getString(R.string.source_node_name, id.takeLast(6))
+    }
+}
 
 internal object SubscriptionNodes {
     const val defaultLimit = 250
@@ -58,7 +63,7 @@ internal object SubscriptionNodes {
             val chain = mutableListOf<JSONObject>()
             val primary = project(raw, references, chain, setOf(raw.optString("tag")), primary = true)
             val id = primary.getString("tag")
-            val name = label.filterNot(Char::isISOControl).take(64).ifBlank { "Узел ${id.takeLast(6)}" }
+            val name = label.filterNot(Char::isISOControl).take(64)
             XrayNode(id, name, listOf(primary) + chain)
         }.getOrNull()
     }

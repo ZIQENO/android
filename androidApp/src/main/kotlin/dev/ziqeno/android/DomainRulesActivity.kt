@@ -56,24 +56,24 @@ class DomainRulesActivity : Activity() {
     private val observer: (VpnStatus) -> Unit = { status ->
         val applied = status.overview?.domainRules == config
         listStatus?.showText(when {
-            !applied && status.domainUpdateFailed -> "Не удалось применить · повторяем"
-            status.phase == VpnPhase.CONNECTED && !applied -> "Применяем правила…"
+            !applied && status.domainUpdateFailed -> getString(R.string.domain_update_retry)
+            status.phase == VpnPhase.CONNECTED && !applied -> getString(R.string.domain_update_applying)
             config.active.isEmpty() -> null
-            applied -> "Для новых соединений"
-            status.phase == VpnPhase.CHECKING -> "Запускаем VPN…"
-            else -> "При запуске VPN"
+            applied -> getString(R.string.domain_update_new_connections)
+            status.phase == VpnPhase.CHECKING -> getString(R.string.domain_update_vpn_starting)
+            else -> getString(R.string.domain_update_vpn_start)
         })
         val checks = if (applied && config.enabled) status.overview?.domainChecks.orEmpty() else emptyMap()
         for ((rule, row) in checkRows) {
             val result = checks[rule.id]
             val summary = when {
                 result == null -> null
-                result.skipped -> "Действует правило выше"
-                !result.tested -> "Ожидает проверки"
-                result.latencyMs == null -> "Проверка не прошла"
+                result.skipped -> getString(R.string.domain_test_shadowed)
+                !result.tested -> getString(R.string.domain_test_pending)
+                result.latencyMs == null -> getString(R.string.domain_test_failed)
                 else -> listOfNotNull(
                     result.server?.takeIf { rule.exit == DomainExit.AUTO },
-                    "${result.latencyMs.roundToInt()} мс",
+                    getString(R.string.domain_test_latency, result.latencyMs.roundToInt()),
                 ).joinToString(" · ")
             }
             val host = rule.testHost?.takeUnless { it == rule.pattern }
@@ -179,14 +179,14 @@ class DomainRulesActivity : Activity() {
         nodeButton = null
         val current = editor
         val title = when {
-            current == null -> "Правила доменов"
-            current.existing == null -> "Новое правило"
-            else -> "Редактировать правило"
+            current == null -> getString(R.string.domain_rules_title)
+            current.existing == null -> getString(R.string.domain_rule_new)
+            else -> getString(R.string.domain_rule_edit)
         }
         root.addView(ui.row().apply {
             setPadding(ui.dp(12), ui.dp(4), ui.dp(20), ui.dp(4))
             addView(ui.navigationArrow(back = true).apply {
-                contentDescription = "Назад"
+                contentDescription = getString(R.string.domain_back)
                 background = ui.press()
                 isFocusable = true
                 setOnClickListener { back() }
@@ -207,7 +207,7 @@ class DomainRulesActivity : Activity() {
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
         when {
-            readFailed -> content.place(ui.text("Не удалось открыть сохранённые правила.", 18))
+            readFailed -> content.place(ui.text(getString(R.string.domain_rules_read_failed), 18))
             current == null -> renderList(content)
             else -> renderEditor(content, current)
         }
@@ -224,7 +224,7 @@ class DomainRulesActivity : Activity() {
 
     private fun renderList(content: LinearLayout) {
         content.place(Switch(this).apply {
-            text = "Применять правила"
+            text = getString(R.string.domain_rules_apply)
             textSize = 18f
             typeface = ui.face
             setTextColor(ui.ink)
@@ -248,27 +248,27 @@ class DomainRulesActivity : Activity() {
         }.also { content.place(it) }
         content.place(notice, 8)
         if (config.rules.size < DomainRuleStore.maxRules) {
-            content.place(ui.button("Добавить правило", primary = true) { openEditor(null) }, 12)
+            content.place(ui.button(getString(R.string.domain_rule_add), primary = true) { openEditor(null) }, 12)
         } else {
-            content.place(ui.text("Можно сохранить до ${DomainRuleStore.maxRules} правил.", 16), 12)
+            content.place(ui.text(getString(R.string.domain_rules_limit, DomainRuleStore.maxRules), 16), 12)
         }
         if (config.rules.isEmpty()) {
-            content.place(ui.text("Правил пока нет.", 18), 16)
+            content.place(ui.text(getString(R.string.domain_rules_empty), 18), 16)
             return
         }
         val ordered = config.rules.size > 1
-        if (ordered) content.place(ui.text("Срабатывает первое совпадение сверху.", 15), 16)
+        if (ordered) content.place(ui.text(getString(R.string.domain_rules_order), 15), 16)
         config.rules.forEachIndexed { index, rule ->
             content.place(ui.divider(), if (index == 0) 12 else 0, ui.dp(1).coerceAtLeast(1))
-            val pattern = rule.pattern.ifEmpty { rule.kind.label }
+            val pattern = rule.pattern.ifEmpty { getString(rule.kind.labelRes) }
             val label = if (ordered) "${index + 1}. $pattern" else pattern
             val route = if (rule.exit == DomainExit.NODE) {
-                nodes?.firstOrNull { it.id == rule.nodeId }?.name ?: when {
-                    nodes == null || nodeReadFailed -> rule.exit.label
-                    else -> "Сервер недоступен"
+                nodes?.firstOrNull { it.id == rule.nodeId }?.displayName(this) ?: when {
+                    nodes == null || nodeReadFailed -> getString(rule.exit.labelRes)
+                    else -> getString(R.string.domain_server_unavailable)
                 }
-            } else rule.exit.label
-            val condition = rule.kind.summary
+            } else getString(rule.exit.labelRes)
+            val condition = rule.kind.summaryRes?.let(::getString)
             val subtitle = if (condition == null) route else "$condition · $route"
             content.place(ui.row().apply {
                 val item = ui.column().apply {
@@ -303,7 +303,7 @@ class DomainRulesActivity : Activity() {
 
     private fun moveControl(index: Int, offset: Int) = ui.navigationArrow().apply {
         rotation = 90f * offset
-        contentDescription = "Переместить правило ${index + 1} ${if (offset < 0) "выше" else "ниже"}"
+        contentDescription = getString(if (offset < 0) R.string.domain_rule_move_up else R.string.domain_rule_move_down, index + 1)
         background = ui.press()
         isFocusable = true
         setOnClickListener {
@@ -319,45 +319,45 @@ class DomainRulesActivity : Activity() {
     }
 
     private fun renderEditor(content: LinearLayout, draft: Editor) {
-        content.place(ui.section("Условие"))
-        content.place(ui.button(draft.kind.label) {
-            choose("Тип совпадения", DomainMatch.entries, draft.kind, { it.label }) {
+        content.place(ui.section(getString(R.string.domain_rule_condition)))
+        content.place(ui.button(getString(draft.kind.labelRes)) {
+            choose(getString(R.string.domain_match_type), DomainMatch.entries, draft.kind, { getString(it.labelRes) }) {
                 draft.kind = it
                 render(scroll.scrollY)
             }
         }, 8)
         if (draft.kind == DomainMatch.MATCH) {
-            content.place(ui.text("Совпадает с любым трафиком. Разместите в конце списка, чтобы сохранить остальные правила.", 16), 8)
+            content.place(ui.text(getString(R.string.domain_match_all_help), 16), 8)
         } else {
-            content.place(ui.text(draft.kind.help, 16), 8)
-            content.place(field("Шаблон", draft.pattern) { draft.pattern = it }, 8)
+            content.place(ui.text(getString(checkNotNull(draft.kind.helpRes)), 16), 8)
+            content.place(field(getString(R.string.domain_match_pattern), draft.pattern) { draft.pattern = it }, 8)
         }
 
-        content.place(ui.section("Действие"), 20)
-        content.place(ui.button(draft.exit.label) {
-            choose("Маршрут", DomainExit.entries, draft.exit, { it.label }) {
+        content.place(ui.section(getString(R.string.domain_rule_action)), 20)
+        content.place(ui.button(getString(draft.exit.labelRes)) {
+            choose(getString(R.string.domain_route), DomainExit.entries, draft.exit, { getString(it.labelRes) }) {
                 draft.exit = it
                 render(scroll.scrollY)
             }
         }, 8)
         if (draft.exit == DomainExit.NODE) {
-            nodeButton = ui.button("Выбрать сервер") {
+            nodeButton = ui.button(getString(R.string.domain_server_choose)) {
                 val choices = nodes.orEmpty()
-                choose("Сервер VPN", choices, choices.firstOrNull { it.id == draft.nodeId }, ::choiceLabel) {
+                choose(getString(R.string.domain_vpn_server), choices, choices.firstOrNull { it.id == draft.nodeId }, ::choiceLabel) {
                     draft.nodeId = it.id
                     updateNodeButton(draft)
                 }
             }.also { content.place(it, 8) }
             updateNodeButton(draft)
-            content.place(ui.text("Если выбранный сервер недоступен, трафик блокируется.", 16), 8)
+            content.place(ui.text(getString(R.string.domain_fixed_server_help), 16), 8)
         }
         if (draft.exit == DomainExit.AUTO) {
-            val explanation = if (draft.test) "Подбирает сервер VPN для хоста проверки."
-                else "Использует общий сервер VPN."
+            val explanation = if (draft.test) getString(R.string.domain_auto_test_help)
+                else getString(R.string.domain_auto_default_help)
             content.place(ui.text(explanation, 16), 8)
         }
         if (draft.exit != DomainExit.REJECT) {
-            content.place(ui.check("Проверять доступность хоста", draft.test) { enabled ->
+            content.place(ui.check(getString(R.string.domain_test_enable), draft.test) { enabled ->
                 draft.test = enabled
                 if (enabled && draft.host.isBlank() && draft.kind in listOf(DomainMatch.EXACT, DomainMatch.SUFFIX)) {
                     draft.host = draft.pattern.trim().removePrefix(".")
@@ -365,15 +365,15 @@ class DomainRulesActivity : Activity() {
                 render(scroll.scrollY)
             }, 12)
             if (draft.test) {
-                content.place(ui.text("Введите хост, подходящий под правило. VPN проверит доступность по HTTPS.", 16), 4)
-                content.place(field("Хост для проверки", draft.host) { draft.host = it }, 8)
+                content.place(ui.text(getString(R.string.domain_test_help), 16), 4)
+                content.place(field(getString(R.string.domain_test_host), draft.host) { draft.host = it }, 8)
             }
         }
         content.place(notice, 12)
-        content.place(ui.button("Сохранить правило", primary = true) { saveEditor(draft) }, 16)
+        content.place(ui.button(getString(R.string.domain_rule_save), primary = true) { saveEditor(draft) }, 16)
         if (draft.existing != null) {
-            content.place(ui.button("Удалить правило") {
-                ui.confirm("Удалить правило?", draft.existing.pattern.ifEmpty { draft.existing.kind.label }, "Удалить") {
+            content.place(ui.button(getString(R.string.domain_rule_delete)) {
+                ui.confirm(getString(R.string.domain_rule_delete_confirm), draft.existing.pattern.ifEmpty { getString(draft.existing.kind.labelRes) }, getString(R.string.domain_delete)) {
                     if (save(config.copy(rules = config.rules.filterNot { it.id == draft.existing.id }))) closeEditor()
                 }
             }, 8)
@@ -384,27 +384,30 @@ class DomainRulesActivity : Activity() {
         val button = nodeButton ?: return
         val choices = nodes.orEmpty()
         button.text = when {
-            nodes == null -> "Читаем сохранённые серверы…"
-            nodeReadFailed -> "Не удалось прочитать серверы"
-            draft.nodeId != null -> choices.firstOrNull { it.id == draft.nodeId }?.let(::choiceLabel) ?: "Сервер недоступен"
-            choices.isEmpty() -> "Добавьте сервер в настройках"
-            else -> "Выбрать сервер"
+            nodes == null -> getString(R.string.domain_servers_loading)
+            nodeReadFailed -> getString(R.string.domain_servers_read_failed)
+            draft.nodeId != null -> choices.firstOrNull { it.id == draft.nodeId }?.let(::choiceLabel) ?: getString(R.string.domain_server_unavailable)
+            choices.isEmpty() -> getString(R.string.domain_server_add_in_settings)
+            else -> getString(R.string.domain_server_choose)
         }
         ui.enabled(button, choices.isNotEmpty())
     }
 
-    private fun choiceLabel(node: XrayNode) = if (nodes.orEmpty().count { it.name == node.name } > 1) {
-        "${node.name} · ${node.id.removePrefix("node-").take(8)}"
-    } else node.name
+    private fun choiceLabel(node: XrayNode): String {
+        val label = node.displayName(this)
+        return if (nodes.orEmpty().count { it.displayName(this) == label } > 1) {
+            "$label · ${node.id.removePrefix("node-").take(8)}"
+        } else label
+    }
 
     private fun saveEditor(draft: Editor) {
         val test = draft.test && draft.exit != DomainExit.REJECT
         if (test && draft.host.isBlank()) {
-            showError("Введите хост для проверки.")
+            showError(getString(R.string.domain_test_host_required))
             return
         }
         if (draft.exit == DomainExit.NODE && draft.nodeId == null) {
-            showError("Выберите сервер VPN.")
+            showError(getString(R.string.domain_vpn_server_required))
             return
         }
         val candidate = try {
@@ -413,7 +416,7 @@ class DomainRulesActivity : Activity() {
                 draft.kind, draft.pattern, draft.exit, draft.nodeId, draft.host.takeIf { test },
             ).normalized()
         } catch (error: IllegalArgumentException) {
-            showError(error.message ?: "Проверьте условие правила.")
+            showError(getString((error as? DomainValidationException)?.messageRes ?: R.string.domain_rule_condition_error))
             return
         }
         val rules = config.rules.toMutableList()
@@ -428,7 +431,7 @@ class DomainRulesActivity : Activity() {
         config = next
         true
     } catch (_: Exception) {
-        showError(saveError)
+        showError(getString(R.string.domain_rules_save_error))
         false
     }
 
@@ -459,39 +462,38 @@ class DomainRulesActivity : Activity() {
 
     private companion object {
         val io = Executors.newSingleThreadExecutor()
-        const val saveError = "Не удалось сохранить правила. Попробуйте ещё раз."
     }
 }
 
-private val DomainMatch.label: String get() = when (this) {
-    DomainMatch.EXACT -> "Точный домен"
-    DomainMatch.SUFFIX -> "Домен и поддомены"
-    DomainMatch.WILDCARD -> "Маска"
-    DomainMatch.KEYWORD -> "Ключевое слово"
-    DomainMatch.REGEX -> "Регулярное выражение"
-    DomainMatch.MATCH -> "Любой трафик"
+private val DomainMatch.labelRes: Int get() = when (this) {
+    DomainMatch.EXACT -> R.string.domain_match_exact
+    DomainMatch.SUFFIX -> R.string.domain_match_suffix
+    DomainMatch.WILDCARD -> R.string.domain_match_wildcard
+    DomainMatch.KEYWORD -> R.string.domain_match_keyword
+    DomainMatch.REGEX -> R.string.domain_match_regex
+    DomainMatch.MATCH -> R.string.domain_match_all
 }
 
-private val DomainMatch.help: String get() = when (this) {
-    DomainMatch.EXACT -> "Например, www.example.com. Совпадает только этот хост."
-    DomainMatch.SUFFIX -> "Например, example.com. Совпадает сам домен и его поддомены."
-    DomainMatch.WILDCARD -> "Например, *.example.com. Знак * заменяет любое число символов, а ? заменяет один."
-    DomainMatch.KEYWORD -> "Например, video. Совпадает с частью имени хоста."
-    DomainMatch.REGEX -> "Например, ^cdn[0-9]+\\.example\\.com$"
-    DomainMatch.MATCH -> ""
-}
-
-private val DomainMatch.summary: String? get() = when (this) {
-    DomainMatch.EXACT -> "Точный"
-    DomainMatch.SUFFIX -> "С поддоменами"
-    DomainMatch.REGEX -> "Выражение"
+private val DomainMatch.helpRes: Int? get() = when (this) {
+    DomainMatch.EXACT -> R.string.domain_match_exact_help
+    DomainMatch.SUFFIX -> R.string.domain_match_suffix_help
+    DomainMatch.WILDCARD -> R.string.domain_match_wildcard_help
+    DomainMatch.KEYWORD -> R.string.domain_match_keyword_help
+    DomainMatch.REGEX -> R.string.domain_match_regex_help
     DomainMatch.MATCH -> null
-    else -> label
 }
 
-private val DomainExit.label: String get() = when (this) {
-    DomainExit.DIRECT -> "Напрямую"
-    DomainExit.AUTO -> "Автовыбор VPN"
-    DomainExit.NODE -> "Конкретный сервер VPN"
-    DomainExit.REJECT -> "Заблокировать"
+private val DomainMatch.summaryRes: Int? get() = when (this) {
+    DomainMatch.EXACT -> R.string.domain_match_exact_summary
+    DomainMatch.SUFFIX -> R.string.domain_match_suffix_summary
+    DomainMatch.REGEX -> R.string.domain_match_regex_summary
+    DomainMatch.MATCH -> null
+    else -> labelRes
+}
+
+private val DomainExit.labelRes: Int get() = when (this) {
+    DomainExit.DIRECT -> R.string.domain_exit_direct
+    DomainExit.AUTO -> R.string.domain_exit_auto
+    DomainExit.NODE -> R.string.domain_exit_fixed
+    DomainExit.REJECT -> R.string.domain_exit_block
 }

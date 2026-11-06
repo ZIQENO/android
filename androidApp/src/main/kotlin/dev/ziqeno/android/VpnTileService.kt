@@ -80,11 +80,11 @@ class VpnTileService : TileService() {
         }
         if (Build.VERSION.SDK_INT >= 29) {
             tile.subtitle = when (status.phase) {
-                VpnPhase.CONNECTED -> "Подключён"
-                VpnPhase.CHECKING -> "Подключаем…"
-                VpnPhase.STOPPING -> "Отключаем…"
-                VpnPhase.ERROR -> "Ошибка подключения"
-                VpnPhase.OFF -> "Выключен"
+                VpnPhase.CONNECTED -> getString(R.string.tile_connected)
+                VpnPhase.CHECKING -> getString(R.string.vpn_state_connecting_short)
+                VpnPhase.STOPPING -> getString(R.string.vpn_state_stopping_short)
+                VpnPhase.ERROR -> getString(R.string.tile_error)
+                VpnPhase.OFF -> getString(R.string.tile_off)
             }
         }
         tile.updateTile()
@@ -113,7 +113,7 @@ class TileConnectActivity : Activity() {
             val dark = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK ==
                 android.content.res.Configuration.UI_MODE_NIGHT_YES
             val ui = PixelUi(this, dark)
-            setContentView(ui.text("Подключение VPN", 22).apply {
+            setContentView(ui.text(getString(R.string.vpn_permission_title), 22).apply {
                 gravity = android.view.Gravity.CENTER
                 setBackgroundColor(ui.paper)
             })

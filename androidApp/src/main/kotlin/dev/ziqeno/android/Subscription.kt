@@ -20,7 +20,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.net.ssl.HttpsURLConnection
 
-internal const val clientVersion = "0.4.8"
+internal const val clientVersion = "0.4.9"
 
 internal data class VpnSource(
     val id: String,
@@ -32,12 +32,14 @@ internal data class VpnSource(
     val hwid: Boolean = true,
 ) {
     val config get() = cachedBody ?: reference
-    val title get() = name.ifBlank {
-        if (kind == SourceKind.SUBSCRIPTION) "Подписка" else "Ручной сервер"
+    fun title(context: Context) = name.ifBlank {
+        context.getString(if (kind == SourceKind.SUBSCRIPTION) R.string.source_subscription else R.string.source_manual_server)
     }
 }
 
-internal class SourceFailure(message: String) : Exception(message)
+internal class SourceFailure(private val resource: Int, private vararg val args: Any) : Exception() {
+    fun message(context: Context): String = context.getString(resource, *args)
+}
 
 internal class SourceStore(context: Context) {
     private val file = AtomicFile(File(context.noBackupFilesDir, "subscription.bin"))
@@ -47,7 +49,7 @@ internal class SourceStore(context: Context) {
     fun save(source: VpnSource, uniqueDefaultName: Boolean): List<VpnSource> = file.locked {
         val previous = read()
         if (previous.any { it.id != source.id && it.kind == source.kind && it.reference == source.reference }) {
-            throw SourceFailure("Этот источник уже добавлен.")
+            throw SourceFailure(R.string.source_duplicate)
         }
         val entry = if (uniqueDefaultName) {
             val used = previous.filter { it.id != source.id && it.kind == source.kind }.map(VpnSource::name).toSet()
@@ -60,7 +62,7 @@ internal class SourceStore(context: Context) {
         val index = previous.indexOfFirst { it.id == source.id }
         val sources = previous.toMutableList()
         if (index < 0) {
-            if (sources.size >= maxSources) throw SourceFailure("Можно сохранить до $maxSources источников.")
+            if (sources.size >= maxSources) throw SourceFailure(R.string.source_max_sources, maxSources)
             sources.add(entry)
         } else sources[index] = entry
         write(sources)
@@ -115,7 +117,7 @@ internal class SourceStore(context: Context) {
             }
         })
         val payload = json("version" to 2, "entries" to entries).toString().encodeToByteArray()
-        if (payload.size > maxCatalogBytes) throw SourceFailure("Подписки занимают слишком много места. Удалите один из источников.")
+        if (payload.size > maxCatalogBytes) throw SourceFailure(R.string.source_store_too_large)
         val cipher = Cipher.getInstance(transformation)
         cipher.init(Cipher.ENCRYPT_MODE, key())
         require(cipher.iv.size == ivLength)
@@ -184,16 +186,15 @@ internal object SubscriptionDownload {
                 val status = connection.responseCode
                 when {
                     connection.flag("x-hwid-max-devices-reached") || connection.flag("x-hwid-limit") ->
-                        throw SourceFailure("Провайдер сообщил, что лимит устройств исчерпан.")
+                        throw SourceFailure(R.string.source_hwid_device_limit)
                     connection.flag("x-hwid-not-supported") ->
-                        throw SourceFailure(if (sameOrigin) "Провайдер требует HWID. Проверьте настройку подписки."
-                            else "Провайдер требует HWID на другом адресе. Добавьте конечную ссылку подписки.")
+                        throw SourceFailure(if (sameOrigin) R.string.source_hwid_required else R.string.source_hwid_redirect)
                     status in listOf(301, 302, 303, 307, 308) -> {
                         check(attempt < maxRedirects)
                         uri = subscriptionUri(uri.resolve(requireNotNull(connection.getHeaderField("Location"))).toASCIIString())
                     }
                     else -> {
-                        if (status !in 200..299) throw SourceFailure("Провайдер вернул HTTP $status.")
+                        if (status !in 200..299) throw SourceFailure(R.string.source_provider_http, status)
                         check(connection.contentLength <= maxBytes)
                         return connection.inputStream.use { stream ->
                             val bytes = ByteArrayOutputStream()

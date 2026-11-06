@@ -10,6 +10,10 @@ captures/
 *.aar
 *.jks
 *.keystore
+*.p12
+*.pfx
+*.dpapi
+release-assets/
 keystore.properties
 .env
 .env.*

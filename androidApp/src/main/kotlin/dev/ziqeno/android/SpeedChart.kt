@@ -17,7 +17,7 @@ internal class SpeedChart(context: Context, private val ui: PixelUi) : View(cont
 
     init {
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
-        contentDescription = "График загрузки и отдачи через VPN за последние 10 минут"
+        contentDescription = context.getString(R.string.traffic_chart_description)
     }
 
     fun update(samples: List<TrafficPoint>, time: Long): Double? {

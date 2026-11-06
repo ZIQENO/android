@@ -1,5 +1,6 @@
 package dev.ziqeno.android
 
+import android.content.Context
 import dev.ziqeno.routing.NetworkKind
 
 internal data class AppAssignment(
@@ -12,12 +13,12 @@ internal data class AppAssignment(
     val protocol: AppProbeProtocol? = null,
 )
 internal data class RouteRow(val title: String, val server: String)
-internal enum class RouteReason(val title: String) {
-    CONNECTED("Первый выбор"),
-    QUALITY("Лучший результат"),
-    FAILURE("Узел перестал отвечать"),
-    SERVICE_FAILURE("Не прошла проверка приложения"),
-    DOMAIN_FAILURE("Не прошла проверка домена"),
+internal enum class RouteReason(val labelRes: Int) {
+    CONNECTED(R.string.routing_reason_connected),
+    QUALITY(R.string.routing_reason_quality),
+    FAILURE(R.string.routing_reason_failure),
+    SERVICE_FAILURE(R.string.routing_reason_service_failure),
+    DOMAIN_FAILURE(R.string.routing_reason_domain_failure),
 }
 
 internal data class RouteChange(
@@ -28,7 +29,14 @@ internal data class RouteChange(
     val previous: String?,
     val next: String,
     val reason: RouteReason,
-)
+) {
+    fun displayRoute(context: Context): String = when (scope) {
+        XrayEngine.defaultRoute -> context.getString(R.string.routing_default_route)
+        AppRouteMode.INTERACTIVE.presetScope -> AppRouteMode.INTERACTIVE.title(context)
+        AppRouteMode.STREAMING.presetScope -> AppRouteMode.STREAMING.title(context)
+        else -> route.ifEmpty { context.getString(R.string.routing_all_connections) }
+    }
+}
 
 internal data class RoutingOverview(
     val network: NetworkKind,

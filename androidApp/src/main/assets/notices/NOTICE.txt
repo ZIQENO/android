@@ -1,0 +1,3 @@
+ZIQENO
+Copyright 2026 cat4blep
+Original project: https://github.com/ZIQENO/android

@@ -1,5 +1,6 @@
 package dev.ziqeno.android
 
+import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.SystemClock
@@ -35,6 +36,7 @@ internal data class RoutingUpdate(val overview: RoutingOverview?, val revision: 
 }
 
 internal class AdaptiveSession(
+    private val context: Context,
     nodes: List<XrayNode>,
     private val tracked: List<TrackedApp>,
     private val targets: AppTargets,
@@ -46,8 +48,8 @@ internal class AdaptiveSession(
     private val currentLink: () -> LinkContext?,
     private val conservingPower: () -> Boolean,
 ) : AutoCloseable {
-    private val names = nodes.associate { it.id to it.name }
-    private val ids = names.keys.toList()
+    private val nodesById = nodes.associateBy(XrayNode::id)
+    private val ids = nodesById.keys.toList()
     private val history = store.load()
     private val defaultRoute = XrayEngine.defaultRoute
     private val presets = tracked.map(TrackedApp::mode).distinct().filter { it.profile != null }
@@ -90,7 +92,7 @@ internal class AdaptiveSession(
         if (!valid() || !force && before.config == config) return@synchronized null
         val next = DomainPlan(config)
         val retained = before.routes.keys.filter { before.routes[it] == next.routes[it] }.toSet()
-        val payload = config.livePayload(names.keys) { rule -> routes[rule.scope]?.current.takeIf { rule.scope in retained } }
+        val payload = config.livePayload(nodesById.keys) { rule -> routes[rule.scope]?.current.takeIf { rule.scope in retained } }
         control.validateDomains(payload)
         if (!valid()) return@synchronized null
         control.selectDomains(payload)
@@ -114,6 +116,10 @@ internal class AdaptiveSession(
 
     fun linkChanged(): Boolean = monitoredLink != currentLink()
     fun isCurrent(update: RoutingUpdate) = revision.get() == update.revision
+
+    fun localizedOverview(): RoutingUpdate? = synchronized(routeLock) {
+        monitoredLink?.let { RoutingUpdate(describe(it), revision.get()) }
+    }
 
     fun nextCheckMillis(): Long = when {
         ids.isNotEmpty() && current(defaultRoute) == null -> 5_000
@@ -291,7 +297,7 @@ internal class AdaptiveSession(
     private fun domainNode(rule: DomainRule): String? = when (rule.exit) {
         DomainExit.DIRECT -> XrayEngine.directProbe
         DomainExit.AUTO -> current(rule.scope) ?: current(defaultRoute)
-        DomainExit.NODE -> rule.nodeId?.takeIf { it in names }
+        DomainExit.NODE -> rule.nodeId?.takeIf { it in nodesById }
         DomainExit.REJECT -> null
     }
 
@@ -434,7 +440,7 @@ internal class AdaptiveSession(
         val previousEffective = previous ?: if (scope in automatic || scope in plan.routes) current(defaultRoute) else null
         val applied = runCatching {
             if (scope in plan.routes) {
-                val payload = plan.config.livePayload(names.keys) { rule ->
+                val payload = plan.config.livePayload(nodesById.keys) { rule ->
                     if (rule.scope == scope) target else routes[rule.scope]?.current
                 }
                 control.selectDomains(payload)
@@ -455,8 +461,8 @@ internal class AdaptiveSession(
             if (link != null && previousEffective != null && previousEffective != target) {
                 if (changes.size == RouteLog.limit) changes.removeLast()
                 changes.addFirst(RouteChange(
-                    System.currentTimeMillis(), scope, title(scope), link.kind, names[previousEffective],
-                    names.getValue(target), reason,
+                    System.currentTimeMillis(), scope, journalTitle(scope), link.kind, nodeName(previousEffective),
+                    nodeName(target), reason,
                 ))
                 routeLog.write(changes.toList())
             }
@@ -592,17 +598,17 @@ internal class AdaptiveSession(
         return RoutingOverview(
             link.kind,
             (listOf(defaultRoute) + domains.builtInServices.map { it.id }).mapNotNull { scope ->
-                routes.getValue(scope).current?.let { RouteRow(title(scope), names.getValue(it)) }
+                routes.getValue(scope).current?.let { RouteRow(title(scope), nodeName(it)) }
                     ?: if (scope == defaultRoute && (domains.active.isNotEmpty() || ids.isEmpty())) {
-                        RouteRow(title(scope), "Общий узел недоступен")
+                        RouteRow(title(scope), context.getString(R.string.routing_default_server_unavailable))
                     } else null
             },
-            reserves[defaultRoute].orEmpty().map(names::getValue),
+            reserves[defaultRoute].orEmpty().map(::nodeName),
             tracked.associate { rule ->
                 val check = appChecks[rule.scope]
                 val node = current(rule.scope) ?: if (rule.mode == AppRouteMode.AUTO) current(defaultRoute) else null
                 rule.app.packageName to AppAssignment(
-                    rule.mode, rule.scope, node?.let(names::get), check?.first?.identity, check?.second,
+                    rule.mode, rule.scope, node?.let(::nodeName), check?.first?.identity, check?.second,
                     check != null && observed[rule.scope] == check.first, check?.first?.protocol,
                 )
             },
@@ -610,10 +616,10 @@ internal class AdaptiveSession(
             domains.active.associate { rule ->
                 val node = domainNode(rule)
                 val server = when (rule.exit) {
-                    DomainExit.DIRECT -> "Напрямую"
-                    DomainExit.REJECT -> "Блокировка"
-                    DomainExit.AUTO -> node?.let(names::get)
-                    DomainExit.NODE -> node?.let(names::get) ?: "Узел недоступен"
+                    DomainExit.DIRECT -> context.getString(R.string.domain_exit_direct)
+                    DomainExit.REJECT -> context.getString(R.string.routing_blocked)
+                    DomainExit.AUTO -> node?.let(::nodeName)
+                    DomainExit.NODE -> node?.let(::nodeName) ?: context.getString(R.string.domain_server_unavailable)
                 }
                 val sample = domainChecks[rule.id]
                 rule.id to DomainCheck(
@@ -625,13 +631,18 @@ internal class AdaptiveSession(
         )
     }
 
+    private fun nodeName(id: String): String = nodesById.getValue(id).displayName(context)
+
+    private fun journalTitle(scope: String): String =
+        if (domainPlan.routes[scope]?.kind == DomainMatch.MATCH) "" else title(scope)
+
     private fun title(scope: String): String = when (scope) {
-        defaultRoute -> "Общий маршрут"
+        defaultRoute -> context.getString(R.string.routing_default_route)
         "github" -> "GitHub"
         "youtube" -> "YouTube"
-        else -> domainPlan.routes[scope]?.title ?: automatic[scope]?.app?.let { app ->
+        else -> domainPlan.routes[scope]?.title(context) ?: automatic[scope]?.app?.let { app ->
             if (appNames.getValue(app.label) == 1) app.label else "${app.label} · ${app.packageName}"
-        } ?: presets.firstOrNull { it.presetScope == scope }?.title ?: scope
+        } ?: presets.firstOrNull { it.presetScope == scope }?.title(context) ?: scope
     }
 
     private fun healthy(samples: List<ProbeSample>) =

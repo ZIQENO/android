@@ -38,7 +38,7 @@ internal fun PixelUi.confirm(title: String, message: String, actionLabel: String
     val body = ScrollView(context).apply {
         addView(text(message, 17))
     }
-    showPixelDialog(title, body, listOf("Отмена" to {}, actionLabel to action), primary = true)
+    showPixelDialog(title, body, listOf(context.getString(R.string.action_dialog_cancel) to {}, actionLabel to action), primary = true)
 }
 
 private fun PixelUi.showChoices(
@@ -82,8 +82,8 @@ private fun PixelUi.showChoices(
         if (selected in labels.indices) setItemChecked(selected + headerViewsCount, true)
     }
     val actions = buildList {
-        remove?.let { add("Удалить" to it) }
-        add("Отмена" to {})
+        remove?.let { add(context.getString(R.string.action_remove) to it) }
+        add(context.getString(R.string.action_dialog_cancel) to {})
         actionLabel?.let { add(it to { select(current) }) }
     }
     val dialog = showPixelDialog(title, choices, actions, primary = actionLabel != null)

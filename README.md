@@ -6,6 +6,8 @@ English · [Русский](README.ru.md)
 
 ZIQENO is an Android VPN client with automatic server selection, per-app routing, and domain-based split tunneling. It requires Android 8.0 or later.
 
+The interface follows Android's language settings. Russian and English are available, with English as the fallback.
+
 [Changelog](CHANGELOG.md) · [Privacy](PRIVACY.md) · [Product](PRODUCT.md) · [Design](DESIGN.md) · [Third-party notices](androidApp/src/main/assets/notices/SOURCES.txt)
 
 ## Servers and subscriptions
@@ -73,6 +75,14 @@ Run these commands in PowerShell.
 The script downloads the official libXray v26.10.31 archive and verifies its SHA-256 checksum. To reuse a downloaded archive, pass `-ArchivePath path/to/libxray-android.zip`. On Linux and macOS, run `pwsh -File scripts/fetch-libxray.ps1`, then run the same Gradle tasks with `sh gradlew`.
 
 The build writes separate debug APKs for arm64-v8a, armeabi-v7a, x86_64, and x86 to `androidApp/build/outputs/apk/debug`. Use arm64-v8a for most modern phones and x86_64 for an x86_64 emulator.
+
+## Publish an Android release
+
+1. Update `versionCode` and `versionName` in `androidApp/build.gradle.kts` and add the version to `CHANGELOG.md`.
+2. Open **Actions → Android release → Run workflow** and select the default branch.
+3. The workflow runs the tests, builds the APKs, signs each architecture, and publishes the release with SHA-256 checksums.
+
+The workflow uses the repository secrets `ZIQENO_SIGNING_KEY_B64` (the Base64-encoded PKCS#12 keystore) and `ZIQENO_SIGNING_PASSWORD`. The signing alias is `ziqeno`. Keep a separate backup of the key and password for future updates. The signing script verifies each APK against the [release certificate fingerprint](scripts/release-certificate.sha256).
 
 ## Third-party components
 

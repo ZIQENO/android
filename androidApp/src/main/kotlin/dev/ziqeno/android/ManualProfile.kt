@@ -1,20 +1,24 @@
 package dev.ziqeno.android
 
+import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.IDN
 import java.net.URI
 import java.util.Base64
 import java.util.UUID
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
 
-internal enum class ManualProtocol(val title: String, val key: String, val credential: String, val defaultPort: String) {
-    VLESS("VLESS", "vless", "UUID", "443"),
-    VMESS("VMess", "vmess", "UUID", "443"),
-    TROJAN("Trojan", "trojan", "Пароль", "443"),
-    SHADOWSOCKS("Shadowsocks", "shadowsocks", "Пароль", "8388"),
-    HYSTERIA("Hysteria 2", "hysteria", "Пароль", "443");
+internal enum class ManualProtocol(val title: String, val key: String, val defaultPort: String) {
+    VLESS("VLESS", "vless", "443"),
+    VMESS("VMess", "vmess", "443"),
+    TROJAN("Trojan", "trojan", "443"),
+    SHADOWSOCKS("Shadowsocks", "shadowsocks", "8388"),
+    HYSTERIA("Hysteria 2", "hysteria", "443");
 
     val usesUuid get() = this == VLESS || this == VMESS
+    val credentialRes get() = if (usesUuid) R.string.source_manual_uuid else R.string.source_manual_password
     val transports get() = when (this) {
         HYSTERIA -> listOf(ManualTransport.HYSTERIA)
         SHADOWSOCKS -> listOf(ManualTransport.RAW)
@@ -30,48 +34,48 @@ internal enum class ManualTransport(val title: String, val key: String) {
     val allowsReality get() = this in listOf(RAW, GRPC, XHTTP)
 }
 
-internal enum class ManualProtection(val title: String, val key: String) {
-    NONE("Без TLS", "none"), TLS("TLS", "tls"), REALITY("REALITY", "reality")
+internal enum class ManualProtection(val titleRes: Int, val key: String) {
+    NONE(R.string.source_manual_none, "none"), TLS(R.string.source_manual_tls, "tls"), REALITY(R.string.source_manual_reality, "reality")
 }
 
 internal enum class ManualOption(
-    val title: String, val limit: Int = 255, val choices: List<String> = emptyList(), val fallback: String = "",
+    val titleRes: Int, val limit: Int = 255, val choices: List<String> = emptyList(), val fallback: String = "",
 ) {
-    ENCRYPTION("VLESS Encryption", 4096, fallback = "none"),
-    FLOW("Flow", choices = listOf("", "xtls-rprx-vision", "xtls-rprx-vision-udp443")),
-    VMESS_CIPHER("Шифрование VMess", choices = listOf("auto", "aes-128-gcm", "chacha20-poly1305", "none", "zero"), fallback = "auto"),
-    SS_CIPHER("Шифр Shadowsocks", choices = listOf(
+    ENCRYPTION(R.string.source_manual_option_encryption, 4096, fallback = "none"),
+    FLOW(R.string.source_manual_option_flow, choices = listOf("", "xtls-rprx-vision", "xtls-rprx-vision-udp443")),
+    VMESS_CIPHER(R.string.source_manual_option_vmess_cipher, choices = listOf("auto", "aes-128-gcm", "chacha20-poly1305", "none", "zero"), fallback = "auto"),
+    SS_CIPHER(R.string.source_manual_option_ss_cipher, choices = listOf(
         "aes-128-gcm", "aes-256-gcm", "chacha20-ietf-poly1305", "2022-blake3-aes-128-gcm",
         "2022-blake3-aes-256-gcm", "2022-blake3-chacha20-poly1305",
     ), fallback = "aes-256-gcm"),
-    HOST("Host"),
-    PATH("Path", 1024),
-    HEADERS("HTTP-заголовки (JSON)", 2048),
-    EARLY("Ранние данные, байт", 5),
-    HEARTBEAT("WebSocket heartbeat, с", 4),
-    SERVICE("Service name", 512),
-    AUTHORITY("Authority"),
-    MULTI("gRPC Multi mode", choices = listOf("false", "true"), fallback = "false"),
-    XHTTP_MODE("Режим XHTTP", choices = listOf("auto", "packet-up", "stream-up", "stream-one"), fallback = "auto"),
-    XHTTP_PADDING("XHTTP padding, байт или диапазон", 16),
-    KCP_MTU("MTU", 5),
-    KCP_TTI("TTI, мс", 4),
-    KCP_UP("Uplink capacity", 6),
-    KCP_DOWN("Downlink capacity", 6),
-    SNI("SNI"),
-    ALPN("ALPN через запятую"),
-    FINGERPRINT("Fingerprint", choices = listOf("", "chrome", "firefox", "safari", "ios", "android", "edge", "random", "randomized")),
-    TLS_PIN("SHA-256 сертификата", 512),
-    ECH("ECH Config List (Base64)", 3072),
-    REALITY_KEY("Публичный ключ REALITY"),
-    SHORT_ID("Short ID", 16),
-    SPIDER("SpiderX", 512),
-    HYSTERIA_OBFS("Пароль Salamander", 512),
-    HYSTERIA_IDLE("Таймаут UDP, с", 3),
-    HYSTERIA_CC("Контроль перегрузки", choices = listOf("", "bbr", "reno", "brutal", "force-brutal")),
-    HYSTERIA_UP("Отдача Brutal, Мбит/с", 6),
-    HYSTERIA_DOWN("Загрузка Brutal, Мбит/с", 6),
-    MUX("Параллельные потоки Mux", 3),
+    HOST(R.string.source_manual_option_host),
+    PATH(R.string.source_manual_option_path, 1024),
+    HEADERS(R.string.source_manual_option_headers, 2048),
+    EARLY(R.string.source_manual_option_early, 5),
+    HEARTBEAT(R.string.source_manual_option_heartbeat, 4),
+    SERVICE(R.string.source_manual_option_service, 512),
+    AUTHORITY(R.string.source_manual_option_authority),
+    MULTI(R.string.source_manual_option_multi, choices = listOf("false", "true"), fallback = "false"),
+    XHTTP_MODE(R.string.source_manual_option_xhttp_mode, choices = listOf("auto", "packet-up", "stream-up", "stream-one"), fallback = "auto"),
+    XHTTP_PADDING(R.string.source_manual_option_xhttp_padding, 16),
+    KCP_MTU(R.string.source_manual_option_kcp_mtu, 5),
+    KCP_TTI(R.string.source_manual_option_kcp_tti, 4),
+    KCP_UP(R.string.source_manual_option_kcp_up, 6),
+    KCP_DOWN(R.string.source_manual_option_kcp_down, 6),
+    SNI(R.string.source_manual_option_sni),
+    ALPN(R.string.source_manual_option_alpn),
+    FINGERPRINT(R.string.source_manual_option_fingerprint, choices = listOf("", "chrome", "firefox", "safari", "ios", "android", "edge", "random", "randomized")),
+    TLS_PIN(R.string.source_manual_option_tls_pin, 512),
+    ECH(R.string.source_manual_option_ech, 3072),
+    REALITY_KEY(R.string.source_manual_option_reality_key),
+    SHORT_ID(R.string.source_manual_option_short_id, 16),
+    SPIDER(R.string.source_manual_option_spider, 512),
+    HYSTERIA_OBFS(R.string.source_manual_option_hysteria_obfs, 512),
+    HYSTERIA_IDLE(R.string.source_manual_option_hysteria_idle, 3),
+    HYSTERIA_CC(R.string.source_manual_option_hysteria_cc, choices = listOf("", "bbr", "reno", "brutal", "force-brutal")),
+    HYSTERIA_UP(R.string.source_manual_option_hysteria_up, 6),
+    HYSTERIA_DOWN(R.string.source_manual_option_hysteria_down, 6),
+    MUX(R.string.source_manual_option_mux, 3),
 }
 
 internal data class ManualProfile(
@@ -146,22 +150,24 @@ internal data class ManualProfile(
     }
 
     fun configuration(): String {
-        require(transport in protocol.transports && protection in protections) { "Транспорт и защита несовместимы." }
+        requireField(transport in protocol.transports && protection in protections, R.string.source_manual_bad_transport)
         activeOptions.forEach { option ->
             val value = value(option)
-            require(value.length <= option.limit && value.none(Char::isISOControl)) { "Проверьте поле «${option.title}»." }
-            if (option.choices.isNotEmpty()) require(value in option.choices) { "Выберите значение поля «${option.title}»." }
+            requireField(value.length <= option.limit && value.none(Char::isISOControl), R.string.source_manual_check_field, option)
+            if (option.choices.isNotEmpty()) requireField(value in option.choices, R.string.source_manual_choose_field, option)
         }
         val host = normalizedHost(address)
         val number = port.trim().toIntOrNull()
-        require(number != null && number in 1..65535) { "Укажите порт от 1 до 65535." }
+        requireField(number != null && number in 1..65535, R.string.source_manual_port_range)
         val credential = if (protocol.usesUuid) secret.trim().lowercase() else secret
-        require(credential.isNotBlank() && credential.length <= 512 && credential.none(Char::isISOControl)) {
-            "Введите ${protocol.credential.lowercase()}."
-        }
-        if (protocol.usesUuid) require(runCatching { UUID.fromString(credential).toString() == credential }.getOrDefault(false)) {
-            "Введите UUID в стандартном формате."
-        }
+        requireField(
+            credential.isNotBlank() && credential.length <= 512 && credential.none(Char::isISOControl),
+            if (protocol.usesUuid) R.string.source_manual_enter_uuid else R.string.source_manual_enter_password,
+        )
+        if (protocol.usesUuid) requireField(
+            runCatching { UUID.fromString(credential).toString() == credential }.getOrDefault(false),
+            R.string.source_manual_uuid_format,
+        )
         val settings = json("address" to host, "port" to number)
         when (protocol) {
             ManualProtocol.VLESS -> settings.put("id", credential).put("encryption", text(ManualOption.ENCRYPTION).ifBlank { "none" }).apply {
@@ -189,13 +195,15 @@ internal data class ManualProfile(
             ManualTransport.WS, ManualTransport.UPGRADE, ManualTransport.XHTTP -> {
                 var path = text(ManualOption.PATH).ifBlank { "/" }
                 val pathUri = runCatching { URI.create(path) }.getOrNull()
-                require(path.startsWith('/') && !path.startsWith("//") && pathUri != null && pathUri.rawFragment == null) {
-                    "Path должен быть относительным путём, начинающимся с /."
-                }
+                requireField(
+                    path.startsWith('/') && !path.startsWith("//") && pathUri != null && pathUri.rawFragment == null,
+                    R.string.source_manual_path_format,
+                )
                 if (transport != ManualTransport.XHTTP) optionalNumber(ManualOption.EARLY, 0..65535)?.let {
-                    require(pathUri.rawQuery.orEmpty().split('&').none { item -> item.substringBefore('=') == "ed" }) {
-                        "Укажите ранние данные в отдельном поле или в Path."
-                    }
+                    requireField(
+                        pathUri.rawQuery.orEmpty().split('&').none { item -> item.substringBefore('=') == "ed" },
+                        R.string.source_manual_duplicate_early,
+                    )
                     path += if ('?' in path) "&ed=$it" else "?ed=$it"
                 }
                 val config = json("path" to path).apply { putText("host", ManualOption.HOST) }
@@ -210,7 +218,10 @@ internal data class ManualProfile(
                         config.put("mode", value(ManualOption.XHTTP_MODE))
                         val padding = text(ManualOption.XHTTP_PADDING)
                         if (padding.isNotEmpty()) {
-                            require(Regex("[0-9]{1,6}(-[0-9]{1,6})?").matches(padding)) { "Укажите число или диапазон XHTTP padding." }
+                            requireField(
+                                Regex("[0-9]{1,6}(-[0-9]{1,6})?").matches(padding),
+                                R.string.source_manual_xhttp_padding_format,
+                            )
                             config.put("xPaddingBytes", padding)
                         }
                         stream.put("xhttpSettings", config)
@@ -239,9 +250,7 @@ internal data class ManualProfile(
                 val quic = JSONObject().apply { putText("congestion", ManualOption.HYSTERIA_CC) }
                 if (ManualOption.HYSTERIA_UP in transportOptions) {
                     val up = optionalNumber(ManualOption.HYSTERIA_UP, 1..100_000)
-                    if (text(ManualOption.HYSTERIA_CC) == "force-brutal") require(up != null) {
-                        "Для force-brutal укажите скорость отдачи."
-                    }
+                    if (text(ManualOption.HYSTERIA_CC) == "force-brutal") requireField(up != null, R.string.source_manual_brutal_uplink)
                     up?.let { quic.put("brutalUp", "$it mbps") }
                     optionalNumber(ManualOption.HYSTERIA_DOWN, 1..100_000)?.let { quic.put("brutalDown", "$it mbps") }
                 }
@@ -254,29 +263,31 @@ internal data class ManualProfile(
     private fun buildProtection(stream: JSONObject) {
         if (protection == ManualProtection.NONE) return
         val sni = text(ManualOption.SNI).takeIf(String::isNotEmpty)?.let(::normalizedHost)
-        if (sni != null) require(':' !in sni) { "Укажите доменное имя в поле SNI." }
+        if (sni != null) requireField(':' !in sni, R.string.source_manual_sni_domain)
         val config = JSONObject()
         sni?.let { config.put("serverName", it) }
         if (ManualOption.FINGERPRINT in protectionOptions) config.putText("fingerprint", ManualOption.FINGERPRINT)
         if (protection == ManualProtection.TLS) {
             val alpn = text(ManualOption.ALPN).split(',').map(String::trim).filter(String::isNotEmpty)
-            require(alpn.all { protocol -> protocol.length <= 32 && protocol.none(Char::isWhitespace) }) { "Проверьте список ALPN." }
+            requireField(
+                alpn.all { protocol -> protocol.length <= 32 && protocol.none(Char::isWhitespace) },
+                R.string.source_manual_alpn_format,
+            )
             if (alpn.isNotEmpty()) config.put("alpn", JSONArray(alpn))
             val pins = text(ManualOption.TLS_PIN).split(',').map(String::trim).filter(String::isNotEmpty)
-            require(pins.all { Regex("[0-9a-fA-F]{64}").matches(it.replace(":", "")) }) {
-                "SHA-256 сертификата должен содержать 64 шестнадцатеричных символа."
-            }
+            requireField(pins.all { Regex("[0-9a-fA-F]{64}").matches(it.replace(":", "")) }, R.string.source_manual_pin_format)
             if (pins.isNotEmpty()) config.put("pinnedPeerCertSha256", pins.joinToString(","))
             config.putText("echConfigList", ManualOption.ECH)
             stream.put("tlsSettings", config)
         } else {
-            require(sni != null) { "Укажите SNI для REALITY." }
+            requireField(sni != null, R.string.source_manual_reality_sni)
             val key = text(ManualOption.REALITY_KEY)
-            require(runCatching { Base64.getUrlDecoder().decode(key).size == 32 }.getOrDefault(false)) {
-                "Укажите публичный ключ REALITY в формате Base64URL."
-            }
+            requireField(
+                runCatching { Base64.getUrlDecoder().decode(key).size == 32 }.getOrDefault(false),
+                R.string.source_manual_reality_key_format,
+            )
             val shortId = text(ManualOption.SHORT_ID)
-            require(Regex("([0-9a-fA-F]{2}){0,8}").matches(shortId)) { "Short ID должен содержать до 16 символов hex парами." }
+            requireField(Regex("([0-9a-fA-F]{2}){0,8}").matches(shortId), R.string.source_manual_short_id_format)
             config.put("fingerprint", text(ManualOption.FINGERPRINT).ifBlank { "chrome" })
                 .put("password", key.trimEnd('=')).put("shortId", shortId)
             config.putText("spiderX", ManualOption.SPIDER)
@@ -288,10 +299,13 @@ internal data class ManualProfile(
         val raw = text(ManualOption.HEADERS)
         if (raw.isEmpty()) return null
         val headers = runCatching { JSONObject(raw) }.getOrNull()
-        require(headers != null && headers.length() <= 20 && headers.keys().asSequence().all { key ->
-            Regex("[A-Za-z0-9!#$%&'*+.^_`|~-]{1,80}").matches(key) && !key.equals("host", true) &&
-                (headers.opt(key) as? String)?.let { it.length <= 512 && it.none(Char::isISOControl) } == true
-        }) { "Укажите HTTP-заголовки как JSON-объект со строковыми значениями. Host вводится отдельно." }
+        requireField(
+            headers != null && headers.length() <= 20 && headers.keys().asSequence().all { key ->
+                Regex("[A-Za-z0-9!#$%&'*+.^_`|~-]{1,80}").matches(key) && !key.equals("host", true) &&
+                    (headers.opt(key) as? String)?.let { it.length <= 512 && it.none(Char::isISOControl) } == true
+            },
+            R.string.source_manual_headers_format,
+        )
         return headers
     }
 
@@ -305,7 +319,7 @@ internal data class ManualProfile(
         val value = text(option)
         if (value.isEmpty()) return null
         val number = value.toIntOrNull()
-        require(number != null && number in range) { "Поле «${option.title}» принимает числа от ${range.first} до ${range.last}." }
+        requireField(number != null && number in range, R.string.source_manual_number_range, option, range.first, range.last)
         return number
     }
 
@@ -329,9 +343,7 @@ internal data class ManualProfile(
 
 private fun normalizedHost(address: String): String {
     val raw = address.trim()
-    require(raw.isNotEmpty() && raw.length <= 253 && raw.none { it.isWhitespace() || it in "/@?#%" }) {
-        "Укажите домен или IP сервера."
-    }
+    requireField(raw.isNotEmpty() && raw.length <= 253 && raw.none { it.isWhitespace() || it in "/@?#%" }, R.string.source_manual_host_format)
     val formatted = runCatching {
         when {
             raw.startsWith("[") -> raw
@@ -340,6 +352,19 @@ private fun normalizedHost(address: String): String {
         }
     }.getOrNull()
     val uri = formatted?.let { runCatching { URI.create("https://$it") }.getOrNull() }
-    require(uri?.host != null && uri.port == -1 && uri.rawPath.isEmpty()) { "Укажите домен или IP сервера." }
+    requireField(uri?.host != null && uri.port == -1 && uri.rawPath.isEmpty(), R.string.source_manual_host_format)
     return uri.host.removeSurrounding("[", "]")
+}
+
+internal class ManualFailure(private val resource: Int, private vararg val args: Any) : IllegalArgumentException() {
+    fun message(context: Context): String {
+        val values = args.map { if (it is ManualOption) context.getString(it.titleRes) else it }
+        return context.getString(resource, *values.toTypedArray())
+    }
+}
+
+@OptIn(ExperimentalContracts::class)
+private fun requireField(condition: Boolean, resource: Int, vararg args: Any) {
+    contract { returns() implies condition }
+    if (!condition) throw ManualFailure(resource, *args)
 }

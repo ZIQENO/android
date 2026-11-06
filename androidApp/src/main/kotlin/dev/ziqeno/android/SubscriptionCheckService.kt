@@ -65,7 +65,7 @@ class SubscriptionCheckService : VpnService() {
 
     private fun start(source: String, reply: Messenger) {
         if (running != null) {
-            reply.deliver(checkFailed, message = "Уже выполняется другая проверка.")
+            reply.deliver(checkFailed, message = getString(R.string.source_check_running))
             return
         }
         val run = CheckRun(reply)
@@ -78,7 +78,7 @@ class SubscriptionCheckService : VpnService() {
                 if (!run.active.get()) return@post
                 val failure = result.exceptionOrNull()
                 reply.deliver(if (failure == null) checkFinished else checkFailed,
-                    message = (failure as? SourceFailure)?.message ?: "Не удалось завершить проверку.")
+                    message = (failure as? SourceFailure)?.message(this) ?: getString(R.string.source_check_finish_failed))
             }
         }
     }
@@ -86,14 +86,14 @@ class SubscriptionCheckService : VpnService() {
     private fun checkServers(id: String, run: CheckRun) {
         if (!run.active.get()) return
         val connectivity = getSystemService(ConnectivityManager::class.java)
-        val link = connectivity.linkContext() ?: throw SourceFailure("Нет сети для проверки.")
+        val link = connectivity.linkContext() ?: throw SourceFailure(R.string.source_check_no_network)
         val tunnel = link.vpn
         if (tunnel && !DatagramSocket().use { protect(it) }) {
-            throw SourceFailure("Текущий VPN не разрешает отдельную проверку.")
+            throw SourceFailure(R.string.source_check_vpn_denied)
         }
         val valid = { run.active.get() && connectivity.linkContext() == link }
         val body = SourceStore(this).load().firstOrNull { it.id == id && it.kind == SourceKind.SUBSCRIPTION }?.cachedBody
-            ?: throw SourceFailure("Сначала обновите список узлов подписки.")
+            ?: throw SourceFailure(R.string.source_check_refresh_needed)
         val nodes = XrayEngine.decodeNodes(body, all = true)
         val store = MeasurementStore(this, manual = true)
         val history = store.load()
@@ -127,7 +127,7 @@ class SubscriptionCheckService : VpnService() {
             checked += batch.size
             run.reply.deliver(checkProgress, checked, nodes.size)
         }
-        if (run.active.get() && !valid()) throw SourceFailure("Сеть изменилась. Запустите проверку ещё раз.")
+        if (run.active.get() && !valid()) throw SourceFailure(R.string.source_check_network_changed)
     }
 
     private fun measure(
@@ -152,6 +152,7 @@ internal data class ServerCheckProgress(val checked: Int = 0, val total: Int = 0
 internal class SubscriptionCheck(
     private val context: Context, private val source: String, private val update: (ServerCheckProgress) -> Unit,
 ) : ServiceConnection, AutoCloseable {
+    private val genericError get() = context.getString(R.string.source_check_start_failed)
     private var bound = false
     private var remote: Messenger? = null
     private val reply = Messenger(Handler(Looper.getMainLooper()) { response ->
@@ -223,4 +224,3 @@ private const val checkProgress = 2
 private const val checkFinished = 3
 private const val checkFailed = 4
 private const val cancelCheck = 5
-private const val genericError = "Не удалось запустить проверку."

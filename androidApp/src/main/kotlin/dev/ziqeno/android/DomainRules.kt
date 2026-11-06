@@ -19,7 +19,7 @@ internal data class DomainRule(
     val testHost: String? = null,
 ) {
     val scope by lazy { "domain-${routeDigest(id)}" }
-    val title get() = if (kind == DomainMatch.MATCH) "Все соединения" else pattern
+    fun title(context: Context) = if (kind == DomainMatch.MATCH) context.getString(R.string.routing_all_connections) else pattern
 
     val xrayPattern: String? get() = when (kind) {
         DomainMatch.EXACT -> "full:$pattern"
@@ -76,38 +76,46 @@ internal data class DomainRules(val enabled: Boolean = false, val rules: List<Do
 
 internal data class DomainCheck(val server: String?, val latencyMs: Double?, val tested: Boolean, val skipped: Boolean = false)
 
+internal class DomainValidationException(val messageRes: Int) : IllegalArgumentException()
+
+private fun requireDomain(condition: Boolean, messageRes: Int) {
+    if (!condition) throw DomainValidationException(messageRes)
+}
+
 internal fun DomainRule.normalized(): DomainRule {
-    require(id.matches(Regex("[A-Za-z0-9-]{1,64}"))) { "Не удалось сохранить правило." }
+    requireDomain(id.matches(Regex("[A-Za-z0-9-]{1,64}")), R.string.domain_invalid_id)
     val value = pattern.trim()
     val normalized = when (kind) {
         DomainMatch.EXACT, DomainMatch.SUFFIX -> normalizeDomain(value)
         DomainMatch.WILDCARD -> value.lowercase().also {
-            require(it.matches(Regex("[a-z0-9*?.-]{1,253}")) && it.any { c -> c == '*' || c == '?' }) {
-                "Укажите маску домена со знаками * или ?."
-            }
+            requireDomain(
+                it.matches(Regex("[a-z0-9*?.-]{1,253}")) && it.any { c -> c == '*' || c == '?' },
+                R.string.domain_invalid_wildcard,
+            )
         }
         DomainMatch.KEYWORD -> value.lowercase().also {
-            require(it.matches(Regex("[a-z0-9.-]{1,253}"))) { "Укажите часть доменного имени." }
+            requireDomain(it.matches(Regex("[a-z0-9.-]{1,253}")), R.string.domain_invalid_keyword)
         }
         DomainMatch.REGEX -> value.also {
-            require(it.length in 1..256 && it.all { char -> char in ' '..'~' }) { "Введите регулярное выражение до 256 символов ASCII." }
-            require(runCatching { Pattern.compile(it) }.isSuccess) { "Проверьте регулярное выражение в синтаксисе RE2." }
+            requireDomain(it.length in 1..256 && it.all { char -> char in ' '..'~' }, R.string.domain_invalid_regex_length)
+            requireDomain(runCatching { Pattern.compile(it) }.isSuccess, R.string.domain_invalid_regex_syntax)
         }
         DomainMatch.MATCH -> ""
     }
     val target = nodeId.takeIf { exit == DomainExit.NODE }
-    require(exit != DomainExit.NODE || target?.matches(Regex("node-[0-9a-f]{32}")) == true) { "Выберите VPN-узел." }
+    requireDomain(exit != DomainExit.NODE || target?.matches(Regex("node-[0-9a-f]{32}")) == true, R.string.domain_vpn_server_required)
     val host = testHost?.takeIf { exit != DomainExit.REJECT }?.let(::normalizeDomain)
     val result = copy(pattern = normalized, nodeId = target, testHost = host)
-    require(host == null || result.matches(host)) { "Домен для проверки должен подходить под правило." }
+    requireDomain(host == null || result.matches(host), R.string.domain_invalid_test_host)
     return result
 }
 
 private fun normalizeDomain(input: String): String {
     val domain = runCatching { IDN.toASCII(input.trim().trimEnd('.'), IDN.USE_STD3_ASCII_RULES).lowercase() }.getOrNull()
-    require(domain != null && domain.length in 3..253 && '.' in domain &&
-        domain.substringAfterLast('.').any { it in 'a'..'z' } &&
-        domain.split('.').all { it.length in 1..63 }) { "Введите домен, например example.org." }
+    if (domain == null || domain.length !in 3..253 || '.' !in domain ||
+        domain.substringAfterLast('.').none { it in 'a'..'z' } ||
+        domain.split('.').any { it.length !in 1..63 }
+    ) throw DomainValidationException(R.string.domain_invalid_hostname)
     return domain
 }
 
@@ -143,7 +151,7 @@ internal class DomainRuleStore(context: Context) {
     }
 
     fun save(config: DomainRules) {
-        require(config.rules.size <= maxRules) { "Доступно до $maxRules правил." }
+        require(config.rules.size <= maxRules)
         require(config.rules.map(DomainRule::id).distinct().size == config.rules.size)
         val items = config.rules.map { raw ->
             val rule = raw.normalized()

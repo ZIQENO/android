@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -29,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal enum class VpnPhase { OFF, CHECKING, CONNECTED, STOPPING, ERROR }
 
 internal data class VpnStatus(
-    val phase: VpnPhase, val message: String, val overview: RoutingOverview? = null,
+    val phase: VpnPhase, val messageRes: Int, val overview: RoutingOverview? = null,
     val domainUpdateFailed: Boolean = false,
 )
 
@@ -37,7 +38,7 @@ internal object VpnSession {
     private val main = Handler(Looper.getMainLooper())
     private val listeners = CopyOnWriteArraySet<(VpnStatus) -> Unit>()
 
-    var status = VpnStatus(VpnPhase.OFF, "VPN выключен")
+    var status = VpnStatus(VpnPhase.OFF, R.string.routing_vpn_off)
         private set
 
     fun observe(listener: (VpnStatus) -> Unit) {
@@ -77,6 +78,7 @@ class RouterVpnService : VpnService() {
     @Volatile private var showDetails = false
     private var recentSpeed: TrafficPoint? = null
     private var notificationText: String? = null
+    private var notificationLanguageTags = ""
     private val displayChanged = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == detailsPreference) {
             showDetails = display.getBoolean(detailsPreference, false)
@@ -92,17 +94,33 @@ class RouterVpnService : VpnService() {
 
     override fun onCreate() {
         super.onCreate()
+        notificationLanguageTags = resources.configuration.locales.toLanguageTags()
         showDetails = display.getBoolean(detailsPreference, false)
         display.registerOnSharedPreferenceChangeListener(displayChanged)
         domainStore.observe(domainsChanged)
         notifications.createNotificationChannel(NotificationChannel(channel, "VPN", NotificationManager.IMPORTANCE_LOW))
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val languageTags = newConfig.locales.toLanguageTags()
+        if (languageTags == notificationLanguageTags) return
+        notificationLanguageTags = languageTags
+        notificationText = null
+        val status = VpnSession.status
+        if (status.phase == VpnPhase.CONNECTED) {
+            val adaptive = session ?: return
+            domainWorker.execute {
+                adaptive.localizedOverview()?.let { publishUpdate(adaptive, it, alreadyConnected = true) }
+            }
+        } else updateNotification(status)
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             disconnect -> requestStop()
             connect -> if (wanted.compareAndSet(false, true)) {
-                val checking = VpnStatus(VpnPhase.CHECKING, "Проверяем серверы")
+                val checking = VpnStatus(VpnPhase.CHECKING, R.string.routing_vpn_checking)
                 domainUpdateFailed = false
                 recentSpeed = null
                 notificationText = summary(checking)
@@ -124,10 +142,10 @@ class RouterVpnService : VpnService() {
             startupFailures = 0
             val domains = domainStore.load()
             val sources = SourceStore(this).load()
-            if (sources.isEmpty() && domains.active.isEmpty()) throw StartFailure("Сначала добавьте подписку или сервер")
+            if (sources.isEmpty() && domains.active.isEmpty()) throw StartFailure(R.string.routing_vpn_add_source)
             val nodes = XrayEngine.validated(SourceNodes.decode(sources, wanted::get), wanted::get)
             if (!wanted.get()) return
-            if (nodes.isEmpty() && domains.active.isEmpty()) throw StartFailure("В источниках нет совместимых серверов")
+            if (nodes.isEmpty() && domains.active.isEmpty()) throw StartFailure(R.string.routing_vpn_no_compatible_servers)
             val interfaceFd = Builder().setSession(getString(R.string.app_name))
                 .setMtu(XrayEngine.mtu)
                 .addAddress("10.71.0.1", 30)
@@ -137,7 +155,7 @@ class RouterVpnService : VpnService() {
                 .addDnsServer(XrayEngine.vpnDns)
                 .setBlocking(false)
                 .apply { if (Build.VERSION.SDK_INT >= 29) setMetered(false) }
-                .establish() ?: throw StartFailure("Android не выдал доступ к VPN")
+                .establish() ?: throw StartFailure(R.string.routing_vpn_access_failed)
             tunnel = interfaceFd
             if (!wanted.get()) return
             val socket = File(filesDir, "xr-${UUID.randomUUID().toString().take(12)}.sock")
@@ -147,7 +165,7 @@ class RouterVpnService : VpnService() {
             val targets = AppTargets(tracked.filter { it.mode == AppRouteMode.AUTO }.map(TrackedApp::app))
             val probes = XrayEngine.start(nodes, tracked, targets, domains, interfaceFd.fd, socket.path, connectivity, packageManager, ::protect)
             val control = RoutingControl(socket.path)
-            val adaptive = AdaptiveSession(nodes, tracked, targets, domains, MeasurementStore(this), RouteLog(this), probes, control,
+            val adaptive = AdaptiveSession(applicationContext, nodes, tracked, targets, domains, MeasurementStore(this), RouteLog(this), probes, control,
                 connectivity::linkContext, { power.isPowerSaveMode })
             session = adaptive
             reloadDomains()
@@ -240,7 +258,7 @@ class RouterVpnService : VpnService() {
             publishUpdate(adaptive, update)
             scheduleRound(adaptive.nextCheckMillis())
         } else if (update?.ready == false && VpnSession.status.phase == VpnPhase.CHECKING && ++startupFailures >= 3) {
-            failStartup(StartFailure("Серверы не ответили на HTTPS-проверку"))
+            failStartup(StartFailure(R.string.routing_vpn_no_https_response))
         } else {
             scheduleRound(if (adaptive.linkChanged()) 500 else 4_000)
         }
@@ -250,7 +268,7 @@ class RouterVpnService : VpnService() {
         main.post {
             if (wanted.get() && session === adaptive && update.ready && adaptive.isCurrent(update) &&
                 (!alreadyConnected || VpnSession.status.phase == VpnPhase.CONNECTED)) {
-                val status = VpnStatus(VpnPhase.CONNECTED, "VPN подключён", update.overview, domainUpdateFailed)
+                val status = VpnStatus(VpnPhase.CONNECTED, R.string.routing_vpn_connected, update.overview, domainUpdateFailed)
                 VpnSession.publish(status)
                 updateNotification(status)
             }
@@ -262,8 +280,8 @@ class RouterVpnService : VpnService() {
         releaseTunnel()
         main.post {
             if (wanted.getAndSet(false)) {
-                val message = (failure as? StartFailure)?.message ?: "Не удалось запустить VPN. Проверьте подписку и сеть."
-                VpnSession.publish(VpnStatus(VpnPhase.ERROR, message))
+                val messageRes = (failure as? StartFailure)?.messageRes ?: R.string.routing_vpn_start_failed
+                VpnSession.publish(VpnStatus(VpnPhase.ERROR, messageRes))
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -272,11 +290,11 @@ class RouterVpnService : VpnService() {
 
     private fun requestStop() {
         if (!wanted.getAndSet(false)) return
-        VpnSession.publish(VpnStatus(VpnPhase.STOPPING, "Отключаем VPN"))
+        VpnSession.publish(VpnStatus(VpnPhase.STOPPING, R.string.routing_vpn_stopping))
         worker.execute {
             releaseTunnel()
             main.post {
-                VpnSession.publish(VpnStatus(VpnPhase.OFF, "VPN выключен"))
+                VpnSession.publish(VpnStatus(VpnPhase.OFF, R.string.routing_vpn_off))
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -295,7 +313,7 @@ class RouterVpnService : VpnService() {
             listening = false
         }
         if (wanted.getAndSet(false)) {
-            VpnSession.publish(VpnStatus(VpnPhase.OFF, "VPN выключен"))
+            VpnSession.publish(VpnStatus(VpnPhase.OFF, R.string.routing_vpn_off))
             worker.execute { releaseTunnel() }
         }
         super.onDestroy()
@@ -338,13 +356,13 @@ class RouterVpnService : VpnService() {
     }
 
     private fun summary(status: VpnStatus): String {
-        if (!showDetails || status.phase != VpnPhase.CONNECTED) return status.message
-        val server = status.overview?.routes?.firstOrNull()?.server ?: return status.message
+        if (!showDetails || status.phase != VpnPhase.CONNECTED) return getString(status.messageRes)
+        val server = status.overview?.routes?.firstOrNull()?.server ?: return getString(status.messageRes)
         val current = recentSpeed?.takeIf { System.currentTimeMillis() - it.at in 0..trafficGapMillis }
         return if (current == null) server else {
             val down = "%.2f".format(current.download)
             val up = "%.2f".format(current.upload)
-            "$server · ↓ $down / ↑ $up Мбит/с"
+            getString(R.string.routing_vpn_notification_speed, server, down, up)
         }
     }
 
@@ -364,11 +382,11 @@ class RouterVpnService : VpnService() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
-            .addAction(Notification.Action.Builder(null, "Отключить", stop).build())
+            .addAction(Notification.Action.Builder(null, getString(R.string.routing_vpn_disconnect), stop).build())
             .build()
     }
 
-    private class StartFailure(message: String) : Exception(message)
+    private class StartFailure(val messageRes: Int) : Exception()
 
     companion object {
         internal const val connect = "dev.ziqeno.android.CONNECT"

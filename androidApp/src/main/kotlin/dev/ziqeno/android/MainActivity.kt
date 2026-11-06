@@ -41,7 +41,6 @@ import dev.ziqeno.routing.NetworkKind
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
@@ -68,8 +67,8 @@ class MainActivity : Activity() {
     private var appsLoading = false
     private var sourceCount = 0
     private var loading = true
-    private var sourceMessage = "Читаем сохранённые источники…"
-    private var state = VpnStatus(VpnPhase.OFF, "VPN выключен")
+    private var sourceMessage = ""
+    private var state = VpnStatus(VpnPhase.OFF, R.string.routing_vpn_off)
     private var lastOverview: RoutingOverview? = null
     private var keyboardVisible = false
     private var backCallback: OnBackInvokedCallback? = null
@@ -81,7 +80,9 @@ class MainActivity : Activity() {
         val info = packageManager.getPackageInfo(packageName, 0)
         info.firstInstallTime == info.lastUpdateTime
     }
-    private val scaleFormat = NumberFormat.getNumberInstance().apply { maximumFractionDigits = 2 }
+    private val scaleFormat by lazy {
+        NumberFormat.getNumberInstance(resources.configuration.locales[0]).apply { maximumFractionDigits = 2 }
+    }
     private val uiTimer = Handler(Looper.getMainLooper())
     private val trafficTick = object : Runnable {
         override fun run() {
@@ -107,6 +108,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        sourceMessage = getString(R.string.sources_reading_saved)
         store = SourceStore(applicationContext)
         appStore = AppTrackingStore(applicationContext)
         routeLog = RouteLog(applicationContext)
@@ -276,12 +278,12 @@ class MainActivity : Activity() {
         header.minimumHeight = ui.dp(72)
         if (page == Page.PICKER || page == Page.JOURNAL) {
             header.addView(ui.navigationArrow(back = true).apply {
-                contentDescription = "Назад"
+                contentDescription = getString(R.string.nav_back)
                 isFocusable = true
                 background = ui.press()
                 setOnClickListener { go(if (page == Page.PICKER) Page.APPS else Page.HOME) }
             }, LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)))
-            val title = if (page == Page.PICKER) "Выбор приложения" else "Журнал смены серверов"
+            val title = getString(if (page == Page.PICKER) R.string.nav_app_picker else R.string.nav_journal)
             header.addView(ui.text(title, 22), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
                 marginStart = ui.dp(12)
             })
@@ -296,15 +298,16 @@ class MainActivity : Activity() {
         }
         val title = when (page) {
             Page.HOME -> getString(R.string.app_name)
-            Page.APPS -> "Приложения"
-            else -> "Настройки"
+            Page.APPS -> getString(R.string.nav_apps)
+            else -> getString(R.string.nav_settings)
         }
         header.addView(ui.text(title, 32), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         if (page == Page.HOME) {
             val connected = state.phase == VpnPhase.CONNECTED
+            val status = getString(if (connected) R.string.connection_online else R.string.connection_offline)
             val pill = ui.row().apply {
                 addView(ui.dot(connected))
-                addView(ui.text(if (connected) "В сети" else "Офлайн", 16, if (connected) ui.accent else ui.ink),
+                addView(ui.text(status, 16, if (connected) ui.accent else ui.ink),
                     LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                         marginStart = ui.dp(8)
                     })
@@ -317,7 +320,7 @@ class MainActivity : Activity() {
         nav.removeAllViews()
         nav.addView(ui.divider(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, ui.dp(1).coerceAtLeast(1)))
         val options = ui.row().apply { setPadding(ui.dp(8), ui.dp(4), ui.dp(8), ui.dp(4)) }
-        listOf(Page.HOME to "VPN", Page.APPS to "Приложения", Page.SETTINGS to "Настройки")
+        listOf(Page.HOME to "VPN", Page.APPS to getString(R.string.nav_apps), Page.SETTINGS to getString(R.string.nav_settings))
             .forEachIndexed { index, (destination, title) ->
                 val selected = page == destination
                 val color = if (selected) ui.accent else ui.ink
@@ -355,29 +358,29 @@ class MainActivity : Activity() {
         }
         val caption = active?.network?.let(::networkName)
         val stateTitle = when (state.phase) {
-            VpnPhase.OFF -> "VPN выключен"
-            VpnPhase.CONNECTED -> "VPN подключён"
-            VpnPhase.CHECKING -> "Проверяем узлы"
-            VpnPhase.STOPPING -> "Отключаем VPN"
-            VpnPhase.ERROR -> "Проверьте VPN"
+            VpnPhase.OFF -> getString(R.string.vpn_state_off)
+            VpnPhase.CONNECTED -> getString(R.string.vpn_state_connected)
+            VpnPhase.CHECKING -> getString(R.string.vpn_state_checking)
+            VpnPhase.STOPPING -> getString(R.string.vpn_state_stopping)
+            VpnPhase.ERROR -> getString(R.string.vpn_state_review)
         }
         card.place(ui.text(stateTitle, 31))
         caption?.let { card.place(ui.text(it, 16, ui.accent), 7) }
         val explanation = when (state.phase) {
             VpnPhase.CONNECTED -> active?.routes?.firstOrNull()?.server.orEmpty()
-            VpnPhase.CHECKING, VpnPhase.STOPPING, VpnPhase.ERROR -> state.message
+            VpnPhase.CHECKING, VpnPhase.STOPPING, VpnPhase.ERROR -> getString(state.messageRes)
             VpnPhase.OFF -> when {
                 sourceCount > 0 || loading -> sourceMessage
-                hasDomainRules -> "Можно применить доменные правила без общего узла."
-                else -> "Добавьте подписку или отдельный сервер."
+                hasDomainRules -> getString(R.string.vpn_can_use_domain_rules)
+                else -> getString(R.string.vpn_add_server_or_subscription)
             }
         }
         if (explanation.isNotBlank()) card.place(ui.text(explanation, 18), 9)
         val action = when (state.phase) {
-            VpnPhase.CHECKING -> "Отменить"
-            VpnPhase.CONNECTED -> "Отключить"
-            VpnPhase.STOPPING -> "Отключаем…"
-            else -> if (sourceCount > 0 || hasDomainRules) "Подключить" else "Добавить источник"
+            VpnPhase.CHECKING -> getString(R.string.action_cancel)
+            VpnPhase.CONNECTED -> getString(R.string.vpn_action_disconnect)
+            VpnPhase.STOPPING -> getString(R.string.vpn_state_stopping_short)
+            else -> getString(if (sourceCount > 0 || hasDomainRules) R.string.vpn_action_connect else R.string.vpn_action_add_source)
         }
         val button = ui.button(action, primary = true) {
             if (idle() && sourceCount == 0 && !hasDomainRules) openSources() else toggleVpn()
@@ -388,7 +391,7 @@ class MainActivity : Activity() {
         content.place(card)
         if (freshInstall && !preferences.getBoolean(powerHintSeen, false)) showPowerHint(content)
 
-        content.place(ui.section("Трафик VPN").apply {
+        content.place(ui.section(getString(R.string.traffic_title)).apply {
             val scale = ui.text("", 14)
             trafficScale = scale
             addView(scale, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
@@ -399,7 +402,8 @@ class MainActivity : Activity() {
             gravity = Gravity.TOP
             for (download in listOf(true, false)) {
                 val metric = ui.column().apply {
-                    place(ui.text(if (download) "Загрузка" else "Отдача", 15, if (download) ui.accent else ui.ink))
+                    val title = getString(if (download) R.string.traffic_download else R.string.traffic_upload)
+                    place(ui.text(title, 15, if (download) ui.accent else ui.ink))
                     val value = ui.text("—", 18)
                     if (download) downloadSpeed = value else uploadSpeed = value
                     place(value, 3)
@@ -409,16 +413,16 @@ class MainActivity : Activity() {
         }, 10)
         trafficChart = SpeedChart(this, ui).also { content.place(it, 8, ui.dp(92)) }
         content.place(ui.row().apply {
-            addView(ui.text("−10 мин", 14), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(ui.text("Сейчас", 14))
+            addView(ui.text(getString(R.string.traffic_ten_minutes_ago), 14), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            addView(ui.text(getString(R.string.traffic_now), 14))
         })
         trafficHint = ui.text("", 15).also { content.place(it, 8) }
         showTraffic()
 
         content.place(ui.divider(), 22, ui.dp(1).coerceAtLeast(1))
-        content.place(ui.section("Маршруты"), 17)
+        content.place(ui.section(getString(R.string.routes_title)), 17)
         if (active == null) {
-            content.place(ui.text("Назначения появятся после подключения.", 17), 9)
+            content.place(ui.text(getString(R.string.routes_empty), 17), 9)
         } else {
             active.routes.drop(1).forEach { row ->
                 content.place(ui.section(row.title, null).apply {
@@ -426,40 +430,44 @@ class MainActivity : Activity() {
                     addView(ui.text(row.server, 17), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.9f))
                 }, 10)
             }
-            if (active.backups.isNotEmpty()) content.place(ui.text("Резерв · ${active.backups.joinToString()}", 16), 11)
+            if (active.backups.isNotEmpty()) content.place(ui.text(getString(R.string.routes_backups, active.backups.joinToString()), 16), 11)
         }
         content.place(ui.divider(), 22, ui.dp(1).coerceAtLeast(1))
-        content.place(ui.section("Смены сервера"), 17)
+        content.place(ui.section(getString(R.string.journal_section)), 17)
         val changes = active?.changes ?: routeLog.read()
         if (changes.isEmpty()) {
-            content.place(ui.text("Пока серверы не менялись.", 17), 9)
+            content.place(ui.text(getString(R.string.journal_empty), 17), 9)
         } else {
             changes.take(3).forEach { change ->
                 val time = DateFormat.getTimeFormat(this).format(Date(change.at))
-                content.place(ui.text("$time · ${change.route}", 15, ui.accent), 10)
+                content.place(ui.text(getString(R.string.journal_preview, time, change.displayRoute(this)), 15, ui.accent), 10)
                 content.place(ui.text(change.next, 18), 4)
             }
         }
-        content.place(ui.button("Открыть журнал") { go(Page.JOURNAL) }, 12)
+        content.place(ui.button(getString(R.string.journal_open)) { go(Page.JOURNAL) }, 12)
     }
 
     private fun showJournal(content: LinearLayout) {
         val entries = routeLog.read()
         if (entries.isEmpty()) {
-            content.place(ui.text("Здесь появятся смены общего сервера, маршрутов сайтов и приложений.", 18))
+            content.place(ui.text(getString(R.string.journal_empty_detail), 18))
             return
         }
         val dates = DateFormat.getMediumDateFormat(this)
-        val times = SimpleDateFormat(if (DateFormat.is24HourFormat(this)) "HH:mm:ss" else "h:mm:ss a", Locale.getDefault())
-        content.place(ui.section("Последние смены", "${entries.size} / ${RouteLog.limit}"))
+        val times = SimpleDateFormat(
+            if (DateFormat.is24HourFormat(this)) "HH:mm:ss" else "h:mm:ss a",
+            resources.configuration.locales[0],
+        )
+        content.place(ui.section(getString(R.string.journal_recent), getString(R.string.list_count, entries.size, RouteLog.limit)))
         for (entry in entries) {
             val date = Date(entry.at)
             content.place(ui.divider(), 16, ui.dp(1).coerceAtLeast(1))
-            content.place(ui.text(entry.route, 22), 12)
-            content.place(ui.text("${dates.format(date)} · ${times.format(date)} · ${networkName(entry.network)}", 15), 5)
-            entry.previous?.let { content.place(ui.text("Было · $it", 16), 8) }
-            content.place(ui.text("Стало · ${entry.next}", 16), 4)
-            content.place(ui.text(entry.reason.title, 15, ui.accent), 5)
+            content.place(ui.text(entry.displayRoute(this), 22), 12)
+            val timestamp = getString(R.string.journal_timestamp, dates.format(date), times.format(date), networkName(entry.network))
+            content.place(ui.text(timestamp, 15), 5)
+            entry.previous?.let { content.place(ui.text(getString(R.string.journal_previous, it), 16), 8) }
+            content.place(ui.text(getString(R.string.journal_next, entry.next), 16), 4)
+            content.place(ui.text(getString(entry.reason.labelRes), 15, ui.accent), 5)
         }
     }
 
@@ -471,19 +479,19 @@ class MainActivity : Activity() {
         val current = samples.lastOrNull()?.takeIf {
             live && it.at >= TrafficHistory.sessionStartedAt && now - it.at <= trafficGapMillis
         }
-        fun value(rate: Double?) = rate?.let { "${"%.2f".format(it)} Мбит/с" } ?: "—"
+        fun value(rate: Double?) = rate?.let { getString(R.string.traffic_rate, it) } ?: "—"
         downloadSpeed?.let { if (it.text != value(current?.download)) it.text = value(current?.download) }
         uploadSpeed?.let { if (it.text != value(current?.upload)) it.text = value(current?.upload) }
         trafficHint?.let { hint ->
             val message = when {
                 samples.isNotEmpty() -> ""
-                live -> "Собираем данные туннеля…"
-                else -> "История появится после подключения."
+                live -> getString(R.string.traffic_collecting)
+                else -> getString(R.string.traffic_history_empty)
             }
             if (hint.text != message) hint.text = message
             hint.visibility = if (message.isEmpty()) View.GONE else View.VISIBLE
         }
-        val scale = chart.update(samples, now)?.let { "До ${scaleFormat.format(it)} Мбит/с" }
+        val scale = chart.update(samples, now)?.let { getString(R.string.traffic_scale, scaleFormat.format(it)) }
         trafficScale?.let {
             if (it.text != scale.orEmpty()) it.text = scale.orEmpty()
             it.visibility = if (scale == null) View.GONE else View.VISIBLE
@@ -493,22 +501,23 @@ class MainActivity : Activity() {
     private fun showApps(content: LinearLayout) {
         val choices = appStore.choices()
         if (!AppTrackingStore.supported) {
-            content.place(ui.text("Маршруты приложений доступны на Android 10 и новее.", 19), 8)
+            content.place(ui.text(getString(R.string.apps_unavailable), 19), 8)
             return
         }
-        content.place(ui.text("Выберите приложения для отдельного маршрута VPN.", 18))
-        val add = ui.button("Добавить приложение", primary = true) { go(Page.PICKER) }
+        content.place(ui.text(getString(R.string.apps_intro), 18))
+        val add = ui.button(getString(R.string.apps_add), primary = true) { go(Page.PICKER) }
         add.id = controlId("add-app")
         ui.enabled(add, choices.size < AppTrackingStore.maxApps)
         content.place(add, 16)
         if (choices.isEmpty()) {
             content.place(ui.divider(), 23, ui.dp(1).coerceAtLeast(1))
-            content.place(ui.section("Список пуст"), 16)
-            content.place(ui.text("Добавьте приложение и откройте его с включённым VPN, чтобы запустить отдельную проверку.", 18), 8)
+            content.place(ui.section(getString(R.string.apps_empty)), 16)
+            content.place(ui.text(getString(R.string.apps_empty_detail), 18), 8)
         } else {
             val names = appInventory.associate { it.packageName to it.label }
             val labels = choices.keys.groupingBy { names[it] ?: it }.eachCount()
-            content.place(ui.section("Мои приложения", "${choices.size} / ${AppTrackingStore.maxApps}"), 22)
+            val count = getString(R.string.list_count, choices.size, AppTrackingStore.maxApps)
+            content.place(ui.section(getString(R.string.apps_mine), count), 22)
             choices.entries.sortedBy { names[it.key] ?: it.key }.forEach { (packageName, mode) ->
                 val name = names[packageName] ?: packageName
                 val assignment = state.overview?.apps?.get(packageName)
@@ -523,27 +532,31 @@ class MainActivity : Activity() {
                         maxLines = 1
                         ellipsize = TextUtils.TruncateAt.MIDDLE
                     }, 4)
-                    place(ui.text(activeMode.title, 16, ui.accent), 4)
+                    place(ui.text(activeMode.title(this@MainActivity), 16, ui.accent), 4)
                     val server = assignment?.server
-                    if (server != null) place(ui.text("Сервер · $server", 16), 4)
-                    else if (state.phase == VpnPhase.CONNECTED) place(ui.text("Вступит при переподключении", 15), 4)
-                    else if (state.phase == VpnPhase.CHECKING) place(ui.text("Подбираем сервер…", 15), 4)
+                    if (server != null) place(ui.text(getString(R.string.apps_server, server), 16), 4)
+                    else if (state.phase == VpnPhase.CONNECTED) place(ui.text(getString(R.string.apps_effective_after_reconnect), 15), 4)
+                    else if (state.phase == VpnPhase.CHECKING) place(ui.text(getString(R.string.apps_selecting_server), 15), 4)
                     if (assignment?.mode == AppRouteMode.AUTO) {
                         val check = when {
-                            assignment.host == null -> "Ожидаем соединение приложения"
-                            !assignment.fresh -> "Последняя проверка · ${assignment.host}"
-                            assignment.reachable == true -> "${assignment.protocol?.title ?: "Адрес"} проверен · ${assignment.host}"
-                            assignment.reachable == false -> "Проверка не прошла · ${assignment.host}"
-                            else -> "Проверяем · ${assignment.host}"
+                            assignment.host == null -> getString(R.string.apps_waiting_for_connection)
+                            !assignment.fresh -> getString(R.string.apps_probe_last, assignment.host)
+                            assignment.reachable == true -> getString(
+                                R.string.apps_probe_success,
+                                assignment.protocol?.title ?: getString(R.string.apps_probe_address),
+                                assignment.host,
+                            )
+                            assignment.reachable == false -> getString(R.string.apps_probe_failed, assignment.host)
+                            else -> getString(R.string.apps_probe_checking, assignment.host)
                         }
                         place(ui.text(check, 15), 4)
                     }
                     if (assignment != null && mode != assignment.mode) {
-                        place(ui.text("После переподключения · ${mode.title}", 15, ui.accent), 5)
+                        place(ui.text(getString(R.string.apps_mode_after_reconnect, mode.title(this@MainActivity)), 15, ui.accent), 5)
                     }
                     lastChange?.let { change ->
                         val time = DateFormat.getTimeFormat(this@MainActivity).format(Date(change.at))
-                        place(ui.text("Смена в $time · ${change.reason.title}", 15, ui.accent), 5)
+                        place(ui.text(getString(R.string.apps_changed_at, time, getString(change.reason.labelRes)), 15, ui.accent), 5)
                     }
                 }
                 val row = ui.row().apply {
@@ -552,8 +565,10 @@ class MainActivity : Activity() {
                     setPadding(0, ui.dp(12), 0, ui.dp(12))
                     background = ui.press()
                     isFocusable = true
-                    contentDescription = "Изменить маршрут. " + (0 until details.childCount)
-                        .joinToString(". ") { (details.getChildAt(it) as TextView).text }
+                    contentDescription = getString(
+                        R.string.apps_edit_accessibility,
+                        (0 until details.childCount).joinToString(". ") { (details.getChildAt(it) as TextView).text },
+                    )
                     details.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
                     addView(details, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
                     addView(ui.navigationArrow(), LinearLayout.LayoutParams(ui.dp(24), ui.dp(24)).apply {
@@ -564,47 +579,47 @@ class MainActivity : Activity() {
                 content.place(row)
             }
         }
-        if (!idle()) content.place(ui.text("Изменения списка и режимов применяются при следующем подключении.", 16), 20)
+        if (!idle()) content.place(ui.text(getString(R.string.apps_changes_after_reconnect), 16), 20)
     }
 
     private fun showSettings(content: LinearLayout) {
-        content.place(ui.section("Источники"))
+        content.place(ui.section(getString(R.string.settings_sources)))
         content.place(ui.text(sourceMessage, 17), 8)
-        content.place(ui.button("Серверы и подписки", primary = true, action = ::openSources), 10)
+        content.place(ui.button(getString(R.string.settings_servers_and_subscriptions), primary = true, action = ::openSources), 10)
         content.place(ui.divider(), 24, ui.dp(1).coerceAtLeast(1))
-        content.place(ui.section("Фоновая работа"), 17)
+        content.place(ui.section(getString(R.string.settings_background)), 17)
         val exempt = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
-        val optimization = if (exempt) "Оптимизация батареи для VPN отключена."
-            else "Если VPN отключается с погашенным экраном, исключите ZIQENO из оптимизации батареи."
+        val optimization = if (exempt) getString(R.string.settings_battery_unrestricted)
+            else getString(R.string.settings_battery_help)
         content.place(ui.text(optimization, 15), 6)
-        content.place(ui.button("Оптимизация батареи") {
+        content.place(ui.button(getString(R.string.settings_battery_optimization)) {
             openPowerSettings(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS), appDetails())
         }, 10)
-        content.place(ui.text("В карточке приложения выберите «Батарея» → «Без ограничений» и разрешите автозапуск, если эти пункты доступны.", 15), 12)
-        content.place(ui.button("Настройки приложения") {
+        content.place(ui.text(getString(R.string.settings_battery_app_help), 15), 12)
+        content.place(ui.button(getString(R.string.settings_app_settings)) {
             openPowerSettings(appDetails(), Intent(Settings.ACTION_SETTINGS))
         }, 10)
         content.place(ui.divider(), 24, ui.dp(1).coerceAtLeast(1))
-        content.place(ui.section("Маршрутизация"), 17)
-        content.place(ui.button("Правила для доменов") {
+        content.place(ui.section(getString(R.string.settings_routing)), 17)
+        content.place(ui.button(getString(R.string.settings_domain_rules)) {
             startActivity(Intent(this, DomainRulesActivity::class.java))
         }, 10)
         content.place(ui.divider(), 24, ui.dp(1).coerceAtLeast(1))
-        content.place(ui.section("Управление Android"), 17)
-        content.place(ui.button("Добавить виджет VPN", action = ::addVpnWidget), 10)
-        content.place(ui.button("Добавить плитку VPN", action = ::addVpnTile), 10)
+        content.place(ui.section(getString(R.string.settings_android_controls)), 17)
+        content.place(ui.button(getString(R.string.settings_add_widget), action = ::addVpnWidget), 10)
+        content.place(ui.button(getString(R.string.settings_add_tile), action = ::addVpnTile), 10)
         val detailed = preferences.getBoolean(RouterVpnService.detailsPreference, false)
-        content.place(ui.check("Подробное уведомление", detailed, ::setNotificationDetails), 8)
-        content.place(ui.text("Показывает текущий сервер и скорость VPN.", 15), 3)
+        content.place(ui.check(getString(R.string.settings_detailed_notification), detailed, ::setNotificationDetails), 8)
+        content.place(ui.text(getString(R.string.settings_detailed_notification_hint), 15), 3)
         if (detailed && !getSystemService(NotificationManager::class.java).areNotificationsEnabled()) {
-            content.place(ui.button("Разрешить уведомления") { openNotificationSettings() }, 8)
+            content.place(ui.button(getString(R.string.settings_allow_notifications)) { openNotificationSettings() }, 8)
         }
         content.place(ui.divider(), 24, ui.dp(1).coerceAtLeast(1))
-        content.place(ui.section("Оформление"), 17)
+        content.place(ui.section(getString(R.string.settings_appearance)), 17)
         val theme = when (preferences.getString("theme", "system")) {
-            "light" -> "Светлая тема"
-            "dark" -> "Тёмная тема"
-            else -> "Как в системе"
+            "light" -> getString(R.string.settings_theme_light)
+            "dark" -> getString(R.string.settings_theme_dark)
+            else -> getString(R.string.settings_theme_system)
         }
         content.place(ui.button(theme, action = ::selectTheme), 11)
         content.place(ui.text("${getString(R.string.app_name)} · $clientVersion", 15), 25)
@@ -612,14 +627,14 @@ class MainActivity : Activity() {
 
     private fun showPowerHint(content: LinearLayout) {
         content.place(ui.divider(), 20, ui.dp(1).coerceAtLeast(1))
-        content.place(ui.section("Фоновая работа VPN"), 12)
-        content.place(ui.text("Android может ограничивать работу VPN, когда экран погашен.", 16), 6)
+        content.place(ui.section(getString(R.string.settings_background_vpn)), 12)
+        content.place(ui.text(getString(R.string.settings_background_hint), 16), 6)
         content.place(ui.row().apply {
-            addView(ui.button("Настроить питание") {
+            addView(ui.button(getString(R.string.settings_configure_power)) {
                 preferences.edit().putBoolean(powerHintSeen, true).apply()
                 go(Page.SETTINGS)
             }, LinearLayout.LayoutParams(0, -2, 2f))
-            addView(ui.button("Позже") {
+            addView(ui.button(getString(R.string.settings_later)) {
                 preferences.edit().putBoolean(powerHintSeen, true).apply()
                 renderPage(preserveScroll = true)
             }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(8) })
@@ -639,9 +654,9 @@ class MainActivity : Activity() {
                 // Some system apps restrict direct access to individual screens.
             }
         }
-        dialog().setTitle("Фоновая работа")
-            .setMessage("Откройте настройки Android, найдите ZIQENO в списке приложений и откройте раздел «Батарея».")
-            .setPositiveButton("Закрыть", null).show()
+        dialog().setTitle(getString(R.string.settings_background))
+            .setMessage(getString(R.string.settings_battery_manual_help))
+            .setPositiveButton(getString(R.string.action_close), null).show()
     }
 
     private fun openSources() {
@@ -657,9 +672,13 @@ class MainActivity : Activity() {
                 sourceCount = sources.size
                 loading = false
                 sourceMessage = when {
-                    result.isFailure -> "Не удалось открыть сохранённые источники."
-                    sources.isEmpty() -> "Подписок и серверов пока нет."
-                    else -> "Подписок: ${sources.count { it.kind == SourceKind.SUBSCRIPTION }} · вручную: ${sources.count { it.kind == SourceKind.MANUAL }}"
+                    result.isFailure -> getString(R.string.sources_saved_read_error)
+                    sources.isEmpty() -> getString(R.string.sources_none)
+                    else -> getString(
+                        R.string.sources_count_summary,
+                        sources.count { it.kind == SourceKind.SUBSCRIPTION },
+                        sources.count { it.kind == SourceKind.MANUAL },
+                    )
                 }
                 if (page == Page.HOME || page == Page.SETTINGS) renderPage(preserveScroll = true)
             }
@@ -690,15 +709,15 @@ class MainActivity : Activity() {
             false
         }
         if (requested) return
-        dialog().setTitle("Виджет VPN")
-            .setMessage("Удерживайте пустое место на главном экране, откройте «Виджеты» и выберите ZIQENO.")
-            .setPositiveButton("Закрыть", null).show()
+        dialog().setTitle(getString(R.string.widget_title))
+            .setMessage(getString(R.string.widget_pin_instructions))
+            .setPositiveButton(getString(R.string.action_close), null).show()
     }
 
     private fun tileInstructions() {
-        dialog().setTitle("Плитка VPN")
-            .setMessage("Откройте быстрые настройки, нажмите «Изменить» и перетащите ZIQENO в список плиток.")
-            .setPositiveButton("Закрыть", null).show()
+        dialog().setTitle(getString(R.string.tile_title))
+            .setMessage(getString(R.string.tile_pin_instructions))
+            .setPositiveButton(getString(R.string.action_close), null).show()
     }
 
     private fun setNotificationDetails(enabled: Boolean) {
@@ -720,8 +739,9 @@ class MainActivity : Activity() {
 
     private fun selectTheme() {
         val keys = listOf("system", "light", "dark")
-        val labels = listOf("Как в системе", "Светлая тема", "Тёмная тема")
-        ui.choose("Оформление", labels, keys.indexOf(preferences.getString("theme", "system"))) { index ->
+        val labels = listOf(R.string.settings_theme_system, R.string.settings_theme_light, R.string.settings_theme_dark)
+            .map { getString(it) }
+        ui.choose(getString(R.string.settings_appearance), labels, keys.indexOf(preferences.getString("theme", "system"))) { index ->
             preferences.edit().putString("theme", keys[index]).apply()
             VpnWidget.refresh(this, VpnSession.status.phase)
             recreate()
@@ -737,13 +757,13 @@ class MainActivity : Activity() {
             if (page == Page.PICKER) go(Page.APPS) else renderPage(preserveScroll = true)
         }
         val warning = if (selected == null && isBrowser) {
-            "В режиме «${AppRouteMode.AUTO.title}» VPN может проверить служебное соединение браузера вместо открытого сайта."
+            getString(R.string.apps_browser_warning, AppRouteMode.AUTO.title(this))
         } else null
         ui.confirmChoice(
             name,
-            modes.map { it.title },
+            modes.map { it.title(this) },
             modes.indexOf(selected ?: AppRouteMode.AUTO),
-            if (selected == null) "Добавить" else "Сохранить",
+            if (selected == null) getString(R.string.action_add) else getString(R.string.action_save),
             message = warning,
             remove = selected?.let { { save(null) } },
         ) { index ->
@@ -797,7 +817,7 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != requestVpn) return
         if (resultCode == RESULT_OK) connect()
-        else VpnSession.publish(VpnStatus(VpnPhase.ERROR, "Разрешите VPN в системном окне."))
+        else VpnSession.publish(VpnStatus(VpnPhase.ERROR, R.string.routing_vpn_permission_denied))
     }
 
     private fun connect() {
@@ -808,8 +828,8 @@ class MainActivity : Activity() {
 
     private fun networkName(network: NetworkKind) = when (network) {
         NetworkKind.WIFI -> "Wi-Fi"
-        NetworkKind.MOBILE -> "Мобильная сеть"
-        NetworkKind.OTHER -> "Другая сеть"
+        NetworkKind.MOBILE -> getString(R.string.network_mobile)
+        NetworkKind.OTHER -> getString(R.string.network_other)
     }
 
     private fun LinearLayout.place(view: View, top: Int = 0, height: Int = LinearLayout.LayoutParams.WRAP_CONTENT) {

@@ -32,7 +32,7 @@
             android:fontFamily="@font/cozette"
             android:includeFontPadding="false"
             android:maxLines="1"
-            android:text="@string/vpn_widget_off"
+            android:text="@string/vpn_state_off"
             android:textColor="#F0EEE7"
             android:textSize="16sp" />
 
@@ -45,7 +45,7 @@
             android:fontFamily="@font/cozette"
             android:includeFontPadding="false"
             android:maxLines="1"
-            android:text="@string/vpn_widget_connect"
+            android:text="@string/vpn_action_connect"
             android:textColor="#BFC7FF"
             android:textSize="14sp" />
     </LinearLayout>

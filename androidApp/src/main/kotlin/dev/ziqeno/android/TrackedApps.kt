@@ -12,10 +12,12 @@ internal data class LaunchableApp(val packageName: String, val label: String, va
     val scope by lazy { "app-${routeDigest(packageName)}" }
 }
 
-internal enum class AppRouteMode(val title: String, val profile: ScoreProfile? = null) {
-    AUTO("По соединениям приложения"),
-    INTERACTIVE("Отзывчивость", ScoreProfile.INTERACTIVE),
-    STREAMING("Загрузка", ScoreProfile.STREAMING);
+internal enum class AppRouteMode(val titleRes: Int, val profile: ScoreProfile? = null) {
+    AUTO(R.string.apps_route_auto),
+    INTERACTIVE(R.string.apps_route_interactive, ScoreProfile.INTERACTIVE),
+    STREAMING(R.string.apps_route_streaming, ScoreProfile.STREAMING);
+
+    fun title(context: Context): String = context.getString(titleRes)
 
     val presetScope get() = "app-${name.lowercase()}"
 }
