@@ -73,6 +73,6 @@ try {
     }
 } finally {
     Get-ChildItem -LiteralPath $staging -File -Force | ForEach-Object { Remove-Item -LiteralPath $_.FullName }
-    Remove-Item -LiteralPath $staging
+    Remove-Item -LiteralPath $staging -Force
 }
 [pscustomobject]@{ Version = $version; VersionCode = $versionCode }
